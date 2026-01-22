@@ -22,16 +22,20 @@ public class SecurityConfig {
                 // Configuración de autorización
                 .authorizeHttpRequests(auth -> auth
 
-                        // PUBLICOS
+                        // PÚBLICOS
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/usuarios").permitAll()
 
-                        // USUARIOS AUTENTICADOS
-                        .requestMatchers(HttpMethod.PUT, "/api/usuarios/**").authenticated()
+                        // USER: solo su propio perfil
+                        .requestMatchers(HttpMethod.PUT, "/api/usuarios/me").hasAnyRole("USER", "ADMIN")
 
-                        // ADMIN
+                        // ADMIN: modificar cualquier usuario
+                        .requestMatchers(HttpMethod.PUT, "/api/usuarios/**").hasRole("ADMIN")
+
+                        // ADMIN endpoints
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
+                        // RESTO
                         .anyRequest().authenticated())
 
                 // Filtro JWT antes del login de Spring Security
