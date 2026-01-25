@@ -24,15 +24,15 @@ public class Registro {
     private LocalTime horaEntrada;
     private LocalTime horaSalida;
 
+    // 📍 GPS SALIDA (viejos campos)
+    private Double latitud;
+    private Double longitud;
+    private Double precisionMetros;
+
     // 📍 GPS ENTRADA (Check-in)
     private Double latitudCheckin;
     private Double longitudCheckin;
     private Double precisionMetrosCheckin;
-
-    // 📍 GPS SALIDA (Check-out)
-    private Double latitudCheckout;
-    private Double longitudCheckout;
-    private Double precisionMetrosCheckout;
 
     // 📝 Reporte del día
     @Column(columnDefinition = "TEXT")
@@ -45,20 +45,20 @@ public class Registro {
     }
 
     public Registro(Long id, Usuario usuario, LocalDate fecha, LocalTime horaEntrada, LocalTime horaSalida,
+            Double latitud, Double longitud, Double precisionMetros,
             Double latitudCheckin, Double longitudCheckin, Double precisionMetrosCheckin,
-            Double latitudCheckout, Double longitudCheckout, Double precisionMetrosCheckout,
             String reporte, String picture) {
         this.id = id;
         this.usuario = usuario;
         this.fecha = fecha;
         this.horaEntrada = horaEntrada;
         this.horaSalida = horaSalida;
+        this.latitud = latitud;
+        this.longitud = longitud;
+        this.precisionMetros = precisionMetros;
         this.latitudCheckin = latitudCheckin;
         this.longitudCheckin = longitudCheckin;
         this.precisionMetrosCheckin = precisionMetrosCheckin;
-        this.latitudCheckout = latitudCheckout;
-        this.longitudCheckout = longitudCheckout;
-        this.precisionMetrosCheckout = precisionMetrosCheckout;
         this.reporte = reporte;
         this.picture = picture;
     }
@@ -103,6 +103,30 @@ public class Registro {
         this.horaSalida = horaSalida;
     }
 
+    public Double getLatitud() {
+        return latitud;
+    }
+
+    public void setLatitud(Double latitud) {
+        this.latitud = latitud;
+    }
+
+    public Double getLongitud() {
+        return longitud;
+    }
+
+    public void setLongitud(Double longitud) {
+        this.longitud = longitud;
+    }
+
+    public Double getPrecisionMetros() {
+        return precisionMetros;
+    }
+
+    public void setPrecisionMetros(Double precisionMetros) {
+        this.precisionMetros = precisionMetros;
+    }
+
     public Double getLatitudCheckin() {
         return latitudCheckin;
     }
@@ -125,30 +149,6 @@ public class Registro {
 
     public void setPrecisionMetrosCheckin(Double precisionMetrosCheckin) {
         this.precisionMetrosCheckin = precisionMetrosCheckin;
-    }
-
-    public Double getLatitudCheckout() {
-        return latitudCheckout;
-    }
-
-    public void setLatitudCheckout(Double latitudCheckout) {
-        this.latitudCheckout = latitudCheckout;
-    }
-
-    public Double getLongitudCheckout() {
-        return longitudCheckout;
-    }
-
-    public void setLongitudCheckout(Double longitudCheckout) {
-        this.longitudCheckout = longitudCheckout;
-    }
-
-    public Double getPrecisionMetrosCheckout() {
-        return precisionMetrosCheckout;
-    }
-
-    public void setPrecisionMetrosCheckout(Double precisionMetrosCheckout) {
-        this.precisionMetrosCheckout = precisionMetrosCheckout;
     }
 
     public String getReporte() {

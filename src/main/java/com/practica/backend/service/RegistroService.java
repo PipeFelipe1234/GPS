@@ -49,7 +49,7 @@ public class RegistroService {
 
         Registro registro = registroRepository
                 .findByUsuarioAndFecha(usuario, LocalDate.now())
-                .orElseThrow(() -> new RuntimeException("No hay entrada registrada"));
+                .orElseThrow(() -> new RuntimeException("No hay entrada registrada para hoy"));
 
         // Validar que tenga entrada sin salida
         if (registro.getHoraSalida() != null) {
@@ -57,14 +57,14 @@ public class RegistroService {
         }
 
         // Validar precisión GPS
-        if (request.precisionMetrosCheckout() != null && request.precisionMetrosCheckout() > 50) {
+        if (request.precisionMetros() != null && request.precisionMetros() > 50) {
             throw new RuntimeException("Precisión GPS insuficiente en salida");
         }
 
         registro.setHoraSalida(LocalTime.now());
-        registro.setLatitudCheckout(request.latitudCheckout());
-        registro.setLongitudCheckout(request.longitudCheckout());
-        registro.setPrecisionMetrosCheckout(request.precisionMetrosCheckout());
+        registro.setLatitud(request.latitud());
+        registro.setLongitud(request.longitud());
+        registro.setPrecisionMetros(request.precisionMetros());
         registro.setReporte(request.reporte());
         registro.setPicture(request.picture());
 
@@ -94,12 +94,12 @@ public class RegistroService {
                 r.getFecha(),
                 r.getHoraEntrada(),
                 r.getHoraSalida(),
+                r.getLatitud(),
+                r.getLongitud(),
+                r.getPrecisionMetros(),
                 r.getLatitudCheckin(),
                 r.getLongitudCheckin(),
                 r.getPrecisionMetrosCheckin(),
-                r.getLatitudCheckout(),
-                r.getLongitudCheckout(),
-                r.getPrecisionMetrosCheckout(),
                 r.getReporte(),
                 r.getPicture(),
                 r.getUsuario().getIdentificacion());
