@@ -1,9 +1,11 @@
 package com.practica.backend.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public record MarcarSalidaRequest(
-                Double latitudCheckout,
-                Double longitudCheckout,
-                Double precisionMetrosCheckout,
+                @JsonProperty("latitud") Double latitudCheckout,
+                @JsonProperty("longitud") Double longitudCheckout,
+                @JsonProperty("precisionMetros") Double precisionMetrosCheckout,
                 String reporte,
                 String picture) {
 }
