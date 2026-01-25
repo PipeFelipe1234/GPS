@@ -1,5 +1,6 @@
 package com.practica.backend.service;
 
+import com.practica.backend.dto.MarcarEntradaRequest;
 import com.practica.backend.dto.MarcarSalidaRequest;
 import com.practica.backend.dto.RegistroResponse;
 import com.practica.backend.entity.Registro;
@@ -20,18 +21,22 @@ public class RegistroService {
         this.registroRepository = registroRepository;
     }
 
-    public RegistroResponse marcarEntrada(Usuario usuario) {
+    public RegistroResponse marcarEntrada(Usuario usuario, MarcarEntradaRequest request) {
 
         LocalDate hoy = LocalDate.now();
 
-        if (registroRepository.findByUsuarioAndFecha(usuario, hoy).isPresent()) {
-            throw new RuntimeException("Ya marcó asistencia hoy");
+        // Validar precisión GPS
+        if (request.precisionMetrosCheckin() != null && request.precisionMetrosCheckin() > 50) {
+            throw new RuntimeException("Precisión GPS insuficiente en entrada");
         }
 
         Registro registro = new Registro();
         registro.setUsuario(usuario);
         registro.setFecha(hoy);
         registro.setHoraEntrada(LocalTime.now());
+        registro.setLatitudCheckin(request.latitudCheckin());
+        registro.setLongitudCheckin(request.longitudCheckin());
+        registro.setPrecisionMetrosCheckin(request.precisionMetrosCheckin());
 
         Registro guardado = registroRepository.save(registro);
 
@@ -46,15 +51,22 @@ public class RegistroService {
                 .findByUsuarioAndFecha(usuario, LocalDate.now())
                 .orElseThrow(() -> new RuntimeException("No hay entrada registrada"));
 
-        if (request.precisionMetros() > 50) {
-            throw new RuntimeException("Precisión GPS insuficiente");
+        // Validar que tenga entrada sin salida
+        if (registro.getHoraSalida() != null) {
+            throw new RuntimeException("Ya marcó salida para este registro");
+        }
+
+        // Validar precisión GPS
+        if (request.precisionMetrosCheckout() != null && request.precisionMetrosCheckout() > 50) {
+            throw new RuntimeException("Precisión GPS insuficiente en salida");
         }
 
         registro.setHoraSalida(LocalTime.now());
-        registro.setLatitud(request.latitud());
-        registro.setLongitud(request.longitud());
-        registro.setPrecisionMetros(request.precisionMetros());
+        registro.setLatitudCheckout(request.latitudCheckout());
+        registro.setLongitudCheckout(request.longitudCheckout());
+        registro.setPrecisionMetrosCheckout(request.precisionMetrosCheckout());
         registro.setReporte(request.reporte());
+        registro.setPicture(request.picture());
 
         Registro guardado = registroRepository.save(registro);
 
@@ -82,12 +94,14 @@ public class RegistroService {
                 r.getFecha(),
                 r.getHoraEntrada(),
                 r.getHoraSalida(),
-                r.getLatitud(),
-                r.getLongitud(),
-                r.getPrecisionMetros(),
+                r.getLatitudCheckin(),
+                r.getLongitudCheckin(),
+                r.getPrecisionMetrosCheckin(),
+                r.getLatitudCheckout(),
+                r.getLongitudCheckout(),
+                r.getPrecisionMetrosCheckout(),
                 r.getReporte(),
+                r.getPicture(),
                 r.getUsuario().getIdentificacion());
-
-        // HOLA CAMBIO
     }
 }
