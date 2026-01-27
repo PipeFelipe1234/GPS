@@ -27,6 +27,8 @@ public class UsuarioService {
         usuario.setNombre(request.nombre());
         usuario.setEmail(request.email());
         usuario.setRol(request.rol());
+        usuario.setFoto(request.foto());
+        usuario.setTelefono(request.telefono());
 
         Usuario guardado = usuarioRepository.save(usuario);
 
@@ -35,7 +37,9 @@ public class UsuarioService {
                 guardado.getIdentificacion(),
                 guardado.getNombre(),
                 guardado.getEmail(),
-                guardado.getRol());
+                guardado.getRol(),
+                guardado.getFoto(),
+                guardado.getTelefono());
     }
 
     public UsuarioResponse actualizarUsuario(Long id, UsuarioRequest request) {
@@ -46,6 +50,8 @@ public class UsuarioService {
         usuario.setNombre(request.nombre());
         usuario.setEmail(request.email());
         usuario.setRol(request.rol());
+        usuario.setFoto(request.foto());
+        usuario.setTelefono(request.telefono());
 
         Usuario actualizado = usuarioRepository.save(usuario);
 
@@ -54,7 +60,9 @@ public class UsuarioService {
                 actualizado.getIdentificacion(),
                 actualizado.getNombre(),
                 actualizado.getEmail(),
-                actualizado.getRol());
+                actualizado.getRol(),
+                actualizado.getFoto(),
+                actualizado.getTelefono());
     }
 
     public Usuario obtenerPorId(Long id) {
@@ -74,6 +82,8 @@ public class UsuarioService {
         usuario.setNombre(request.nombre());
         usuario.setEmail(request.email());
         usuario.setRol(request.rol());
+        usuario.setFoto(request.foto());
+        usuario.setTelefono(request.telefono());
 
         Usuario actualizado = usuarioRepository.save(usuario);
 
@@ -82,7 +92,9 @@ public class UsuarioService {
                 actualizado.getIdentificacion(),
                 actualizado.getNombre(),
                 actualizado.getEmail(),
-                actualizado.getRol());
+                actualizado.getRol(),
+                actualizado.getFoto(),
+                actualizado.getTelefono());
     }
 
     public List<UsuarioResponse> obtenerTodos() {
@@ -93,7 +105,9 @@ public class UsuarioService {
                         u.getIdentificacion(),
                         u.getNombre(),
                         u.getEmail(),
-                        u.getRol()))
+                        u.getRol(),
+                        u.getFoto(),
+                        u.getTelefono()))
                 .toList();
     }
 }

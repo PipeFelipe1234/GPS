@@ -98,6 +98,8 @@ public class RegistroService {
                 r.getReporte(),
                 r.getPicture(),
                 r.getUsuario().getIdentificacion(),
-                r.getUsuario().getNombre());
+                r.getUsuario().getNombre(),
+                r.getUsuario().getFoto(),
+                r.getUsuario().getTelefono());
     }
 }

@@ -22,15 +22,24 @@ public class Usuario {
     @Column(nullable = false)
     private String rol; // ADMIN / USER
 
+    @Column
+    private String foto;
+
+    @Column
+    private Integer telefono;
+
     public Usuario() {
     }
 
-    public Usuario(Long id, String identificacion, String nombre, String email, String rol) {
+    public Usuario(Long id, String identificacion, String nombre, String email, String rol, String foto,
+            Integer telefono) {
         this.id = id;
         this.identificacion = identificacion;
         this.nombre = nombre;
         this.email = email;
         this.rol = rol;
+        this.foto = foto;
+        this.telefono = telefono;
     }
 
     public Long getId() {
@@ -71,5 +80,21 @@ public class Usuario {
 
     public void setRol(String rol) {
         this.rol = rol;
+    }
+
+    public String getFoto() {
+        return foto;
+    }
+
+    public void setFoto(String foto) {
+        this.foto = foto;
+    }
+
+    public Integer getTelefono() {
+        return telefono;
+    }
+
+    public void setTelefono(Integer telefono) {
+        this.telefono = telefono;
     }
 }

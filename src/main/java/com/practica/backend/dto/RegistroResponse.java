@@ -17,5 +17,7 @@ public record RegistroResponse(
                 String reporte,
                 String picture,
                 String identificacion,
-                String nombre) {
+                String nombre,
+                String foto,
+                Integer telefono) {
 }
