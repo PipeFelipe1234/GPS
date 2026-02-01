@@ -102,21 +102,20 @@ public class JwtUtil {
 
     public static String refrescarToken(String token) {
         try {
-            // Extraer claims incluso si el token está expirado (pero con firma válida)
-            Claims claims = extraerClaimsConToleranciaExpiracion(token);
-
-            if (claims == null) {
-                return null; // Token inválido
+            // Validar que el token sea válido y NO esté expirado
+            if (!validarToken(token)) {
+                return null; // Token expirado o inválido
             }
 
-            String identificacion = claims.getSubject();
-            String rol = claims.get("rol", String.class);
-            String nombre = claims.get("nombre", String.class);
+            // Extraer información del token válido
+            String identificacion = extraerIdentificacion(token);
+            String rol = extraerRol(token);
+            String nombre = extraerNombre(token);
 
             // Generar nuevo token con nueva fecha de expiración
             return generarToken(identificacion, rol, nombre);
         } catch (Exception e) {
-            return null; // Token inválido o error al generar nuevo token
+            return null; // Error al procesar token
         }
     }
-}
+}}}
