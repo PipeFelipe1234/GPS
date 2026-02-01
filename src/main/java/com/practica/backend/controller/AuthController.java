@@ -22,10 +22,4 @@ public class AuthController {
             @RequestBody LoginRequest request) {
         return ResponseEntity.ok(authService.login(request));
     }
-
-    @PostMapping("/refresh")
-    public ResponseEntity<LoginResponse> refresh(
-            @RequestHeader("Authorization") String authHeader) {
-        return ResponseEntity.ok(authService.refrescarToken(authHeader));
-    }
 }

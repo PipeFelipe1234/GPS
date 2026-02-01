@@ -21,36 +21,30 @@ public class JwtFilter extends OncePerRequestFilter {
             FilterChain filterChain) throws ServletException, IOException {
 
         String authHeader = request.getHeader("Authorization");
-        String requestUri = request.getRequestURI();
 
-        // Si tiene Authorization header, intentar validar el token
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
+
             String token = authHeader.substring(7);
 
             try {
-                // Validar que el token sea válido y no expirado
-                if (JwtUtil.validarToken(token)) {
-                    // Token válido - extraer información
-                    String identificacion = JwtUtil.extraerIdentificacion(token);
-                    String rol = JwtUtil.extraerRol(token);
+                String identificacion = JwtUtil.extraerIdentificacion(token);
+                String rol = JwtUtil.extraerRol(token);
 
-                    // Crear lista de autoridades
-                    List<SimpleGrantedAuthority> autoridades = new ArrayList<>();
-                    if (rol != null && !rol.isEmpty()) {
-                        autoridades.add(new SimpleGrantedAuthority("ROLE_" + rol));
-                    }
-
-                    UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                            identificacion,
-                            null,
-                            autoridades);
-
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                // Crear lista de autoridades
+                List<SimpleGrantedAuthority> autoridades = new ArrayList<>();
+                if (rol != null && !rol.isEmpty()) {
+                    autoridades.add(new SimpleGrantedAuthority("ROLE_" + rol));
                 }
-                // Si el token es inválido o expirado, simplemente no autentica
-                // Spring Security decidirá si requiere autenticación basado en la configuración
+
+                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                        identificacion,
+                        null,
+                        autoridades);
+
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+
             } catch (Exception e) {
-                // Error al procesar token, no establecer autenticación
+                // Token inválido o expirado
             }
         }
 
