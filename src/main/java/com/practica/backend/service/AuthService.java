@@ -28,4 +28,22 @@ public class AuthService {
 
         return new LoginResponse(token);
     }
+
+    public LoginResponse refrescarToken(String authHeader) {
+        // Validar que el header sea válido
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            throw new RuntimeException("Token inválido o ausente");
+        }
+
+        String token = authHeader.substring(7);
+
+        // Refrescar el token
+        String nuevoToken = JwtUtil.refrescarToken(token);
+
+        if (nuevoToken == null) {
+            throw new RuntimeException("No se pudo refrescar el token. Por favor, inicia sesión nuevamente.");
+        }
+
+        return new LoginResponse(nuevoToken);
+    }
 }
