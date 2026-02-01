@@ -73,22 +73,50 @@ public class JwtUtil {
         }
     }
 
-    public static String refrescarToken(String token) {
+    public static Claims extraerClaimsConToleranciaExpiracion(String token) {
         try {
-            // Validar que el token sea válido (aunque esté próximo a expirar)
-            Jwts.parserBuilder()
+            // Este método extrae los claims incluso si el token está expirado
+            // Pero valida que la firma sea correcta
+            return Jwts.parserBuilder()
                     .setSigningKey(key)
                     .build()
-                    .parseClaimsJws(token);
+                    .parseClaimsJwt(token)
+                    .getBody();
+        } catch (Exception e) {
+            // Si falla parseClaimsJwt, intentar con parseClaimsJws para mejor manejo de
+            // errores
+            try {
+                return Jwts.parserBuilder()
+                        .setSigningKey(key)
+                        .build()
+                        .parseClaimsJws(token)
+                        .getBody();
+            } catch (ExpiredJwtException e2) {
+                // Token expirado pero firma válida - extraer claims de la excepción
+                return e2.getClaims();
+            } catch (Exception e3) {
+                return null; // Token completamente inválido
+            }
+        }
+    }
 
-            // Si es válido, extraer información y generar uno nuevo
-            String identificacion = extraerIdentificacion(token);
-            String rol = extraerRol(token);
-            String nombre = extraerNombre(token);
+    public static String refrescarToken(String token) {
+        try {
+            // Extraer claims incluso si el token está expirado (pero con firma válida)
+            Claims claims = extraerClaimsConToleranciaExpiracion(token);
 
+            if (claims == null) {
+                return null; // Token inválido
+            }
+
+            String identificacion = claims.getSubject();
+            String rol = claims.get("rol", String.class);
+            String nombre = claims.get("nombre", String.class);
+
+            // Generar nuevo token con nueva fecha de expiración
             return generarToken(identificacion, rol, nombre);
         } catch (Exception e) {
-            return null; // Token inválido o expirado
+            return null; // Token inválido o error al generar nuevo token
         }
     }
 }

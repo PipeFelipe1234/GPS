@@ -21,7 +21,9 @@ public class JwtFilter extends OncePerRequestFilter {
             FilterChain filterChain) throws ServletException, IOException {
 
         String authHeader = request.getHeader("Authorization");
+        String requestUri = request.getRequestURI();
 
+        // Permitir que el endpoint de refresh procese tokens expirados
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
 
             String token = authHeader.substring(7);
@@ -43,8 +45,36 @@ public class JwtFilter extends OncePerRequestFilter {
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
 
+            } catch (ExpiredJwtException e) {
+                // Si es el endpoint de refresh, permitir que continúe con token expirado
+                if (requestUri.contains("/api/auth/refresh")) {
+                    // Extraer información del token expirado para el endpoint
+                    try {
+                        String identificacion = e.getClaims().getSubject();
+                        String rol = e.getClaims().get("rol", String.class);
+
+                        List<SimpleGrantedAuthority> autoridades = new ArrayList<>();
+                        if (rol != null && !rol.isEmpty()) {
+                            autoridades.add(new SimpleGrantedAuthority("ROLE_" + rol));
+                        }
+
+                        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                                identificacion,
+                                null,
+                                autoridades);
+
+                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                    } catch (Exception ex) {
+                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                        return;
+                    }
+                } else {
+                    // Para otros endpoints, rechazar token expirado
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    return;
+                }
             } catch (Exception e) {
-                // Token inválido o expirado
+                // Token inválido
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 return;
             }
