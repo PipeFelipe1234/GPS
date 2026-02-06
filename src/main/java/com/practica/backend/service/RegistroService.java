@@ -2,6 +2,7 @@ package com.practica.backend.service;
 
 import com.practica.backend.dto.MarcarEntradaRequest;
 import com.practica.backend.dto.MarcarSalidaRequest;
+import com.practica.backend.dto.RegistroFilterRequest;
 import com.practica.backend.dto.RegistroResponse;
 import com.practica.backend.entity.Registro;
 import com.practica.backend.entity.Usuario;
@@ -120,7 +121,18 @@ public class RegistroService {
                 .toList();
     }
 
-    // 🔁 Mapper centralizado
+    // � FILTRAR REGISTROS CON CRITERIOS PERSONALIZADOS
+    public List<RegistroResponse> filtrarRegistros(RegistroFilterRequest filtro) {
+        return registroRepository.findByFiltros(
+                filtro.getFecha(),
+                filtro.getIdentificacion(),
+                filtro.getNombres())
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
+    }
+
+    // �🔁 Mapper centralizado
     private RegistroResponse mapToResponse(Registro r) {
         return new RegistroResponse(
                 r.getId(),
