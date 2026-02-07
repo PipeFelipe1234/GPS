@@ -1,5 +1,6 @@
 package com.practica.backend.controller;
 
+import com.practica.backend.dto.RegistroFilterRequest;
 import com.practica.backend.service.RegistroService;
 import com.practica.backend.service.UsuarioService;
 import org.springframework.http.ResponseEntity;
@@ -30,5 +31,11 @@ public class AdminController {
     @GetMapping("/usuarios")
     public ResponseEntity<?> todosLosUsuarios() {
         return ResponseEntity.ok(usuarioService.obtenerTodos());
+    }
+
+    // 🔍 FILTRAR REGISTROS POR FECHA, IDENTIFICACIÓN O NOMBRES
+    @PostMapping("/registros/filtrar")
+    public ResponseEntity<?> filtrarRegistros(@RequestBody RegistroFilterRequest filtro) {
+        return ResponseEntity.ok(registroService.filtrarRegistros(filtro));
     }
 }

@@ -5,6 +5,7 @@ import com.practica.backend.dto.LoginResponse;
 import com.practica.backend.entity.Usuario;
 import com.practica.backend.repository.UsuarioRepository;
 import com.practica.backend.security.JwtUtil;
+import io.jsonwebtoken.Claims;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -24,8 +25,35 @@ public class AuthService {
         String token = JwtUtil.generarToken(
                 usuario.getIdentificacion(),
                 usuario.getRol(),
-                usuario.getNombre());
+                usuario.getNombre(),
+                usuario.getFoto());
 
         return new LoginResponse(token);
+    }
+
+    public LoginResponse refrescarToken(String authHeader) {
+        // Validar que el header tenga el formato correcto
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            throw new RuntimeException("Header de autorización inválido");
+        }
+
+        String token = authHeader.substring(7);
+
+        // Extraer claims (funciona incluso si el token está expirado)
+        Claims claims = JwtUtil.extraerClaimsIgnorandoExpiracion(token);
+        String identificacion = claims.getSubject();
+        String rol = claims.get("rol", String.class);
+        String nombre = claims.get("nombre", String.class);
+        String foto = claims.get("foto", String.class);
+
+        // Verificar si el token es válido (no está expirado)
+        if (JwtUtil.esTokenValido(token)) {
+            // Token aún válido: devolver el mismo token
+            return new LoginResponse(token);
+        } else {
+            // Token expirado: generar uno nuevo
+            String nuevoToken = JwtUtil.generarToken(identificacion, rol, nombre, foto);
+            return new LoginResponse(nuevoToken);
+        }
     }
 }
