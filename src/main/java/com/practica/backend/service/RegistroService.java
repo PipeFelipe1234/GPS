@@ -13,16 +13,20 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class RegistroService {
 
     private final RegistroRepository registroRepository;
+    private final NotificacionService notificacionService;
     private static final DateTimeFormatter ISO_FORMATTER = DateTimeFormatter.ISO_DATE_TIME;
 
-    public RegistroService(RegistroRepository registroRepository) {
+    public RegistroService(RegistroRepository registroRepository, NotificacionService notificacionService) {
         this.registroRepository = registroRepository;
+        this.notificacionService = notificacionService;
     }
 
     /**
@@ -68,6 +72,9 @@ public class RegistroService {
 
         Registro guardado = registroRepository.save(registro);
 
+        // 📲 ENVIAR NOTIFICACIÓN A LOS ADMINS
+        enviarNotificacionEntrada(guardado);
+
         return mapToResponse(guardado);
     }
 
@@ -103,6 +110,9 @@ public class RegistroService {
         registro.setPicture(request.picture());
 
         Registro guardado = registroRepository.save(registro);
+
+        // 📲 ENVIAR NOTIFICACIÓN A LOS ADMINS
+        enviarNotificacionSalida(guardado);
 
         return mapToResponse(guardado);
     }
@@ -151,5 +161,45 @@ public class RegistroService {
                 r.getUsuario().getNombre(),
                 r.getUsuario().getFoto(),
                 r.getUsuario().getTelefono());
+    }
+
+    // 📲 NOTIFICACIÓN DE ENTRADA
+    private void enviarNotificacionEntrada(Registro registro) {
+        try {
+            Map<String, String> datos = new HashMap<>();
+            datos.put("tipo", "ENTRADA");
+            datos.put("registroId", registro.getId().toString());
+            datos.put("usuarioId", registro.getUsuario().getId().toString());
+            datos.put("fecha", registro.getFecha().toString());
+            datos.put("hora", registro.getHoraEntrada().toString());
+
+            String titulo = "✅ Entrada Registrada";
+            String mensaje = registro.getUsuario().getNombre() + " marcó entrada a las " +
+                    registro.getHoraEntrada().toString();
+
+            notificacionService.enviarNotificacionAAdmins(titulo, mensaje, datos);
+        } catch (Exception e) {
+            System.err.println("❌ Error al enviar notificación de entrada: " + e.getMessage());
+        }
+    }
+
+    // 📲 NOTIFICACIÓN DE SALIDA
+    private void enviarNotificacionSalida(Registro registro) {
+        try {
+            Map<String, String> datos = new HashMap<>();
+            datos.put("tipo", "SALIDA");
+            datos.put("registroId", registro.getId().toString());
+            datos.put("usuarioId", registro.getUsuario().getId().toString());
+            datos.put("fecha", registro.getFecha().toString());
+            datos.put("hora", registro.getHoraSalida().toString());
+
+            String titulo = "🚪 Salida Registrada";
+            String mensaje = registro.getUsuario().getNombre() + " marcó salida a las " +
+                    registro.getHoraSalida().toString();
+
+            notificacionService.enviarNotificacionAAdmins(titulo, mensaje, datos);
+        } catch (Exception e) {
+            System.err.println("❌ Error al enviar notificación de salida: " + e.getMessage());
+        }
     }
 }

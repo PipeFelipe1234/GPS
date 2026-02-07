@@ -71,7 +71,7 @@ public class UsuarioService {
 
     public Usuario obtenerPorIdentificacion(String identificacion) {
         return usuarioRepository.findByIdentificacion(identificacion)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+                .orElse(null);
     }
 
     public UsuarioResponse actualizarPorIdentificacion(String identificacion, UsuarioRequest request) {
