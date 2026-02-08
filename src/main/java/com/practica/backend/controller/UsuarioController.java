@@ -18,6 +18,16 @@ public class UsuarioController {
         this.usuarioService = usuarioService;
     }
 
+    // 👤 VER MIS PROPIOS DATOS
+    @GetMapping("/mis-datos")
+    public ResponseEntity<UsuarioResponse> obtenerMisDatos() {
+        String identificacion = SecurityContextHolder
+                .getContext()
+                .getAuthentication()
+                .getName();
+        return ResponseEntity.ok(usuarioService.obtenerUsuarioResponsePorIdentificacion(identificacion));
+    }
+
     @PostMapping
     public ResponseEntity<UsuarioResponse> crearUsuario(
             @RequestBody UsuarioRequest dto) {

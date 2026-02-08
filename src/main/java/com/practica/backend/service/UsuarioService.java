@@ -73,9 +73,37 @@ public class UsuarioService {
         return usuarioRepository.findById(id).orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
     }
 
+    public UsuarioResponse obtenerUsuarioResponsePorId(Long id) {
+        Usuario u = usuarioRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+        return new UsuarioResponse(
+                u.getId(),
+                u.getIdentificacion(),
+                u.getNombre(),
+                u.getEmail(),
+                u.getRol(),
+                u.getFoto(),
+                u.getTelefono(),
+                u.getCargo());
+    }
+
     public Usuario obtenerPorIdentificacion(String identificacion) {
         return usuarioRepository.findByIdentificacion(identificacion)
                 .orElse(null);
+    }
+
+    public UsuarioResponse obtenerUsuarioResponsePorIdentificacion(String identificacion) {
+        Usuario u = usuarioRepository.findByIdentificacion(identificacion)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+        return new UsuarioResponse(
+                u.getId(),
+                u.getIdentificacion(),
+                u.getNombre(),
+                u.getEmail(),
+                u.getRol(),
+                u.getFoto(),
+                u.getTelefono(),
+                u.getCargo());
     }
 
     public UsuarioResponse actualizarPorIdentificacion(String identificacion, UsuarioRequest request) {

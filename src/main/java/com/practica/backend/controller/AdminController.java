@@ -33,6 +33,12 @@ public class AdminController {
         return ResponseEntity.ok(usuarioService.obtenerTodos());
     }
 
+    // 👮 VER UN USUARIO ESPECÍFICO POR ID
+    @GetMapping("/usuarios/{id}")
+    public ResponseEntity<?> obtenerUsuarioPorId(@PathVariable Long id) {
+        return ResponseEntity.ok(usuarioService.obtenerUsuarioResponsePorId(id));
+    }
+
     // 🔍 FILTRAR REGISTROS POR FECHA, IDENTIFICACIÓN O NOMBRES
     @PostMapping("/registros/filtrar")
     public ResponseEntity<?> filtrarRegistros(@RequestBody RegistroFilterRequest filtro) {
