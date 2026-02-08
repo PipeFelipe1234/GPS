@@ -199,8 +199,7 @@ public class RegistroService {
             datos.put("hora", registro.getHoraEntrada().toString());
 
             String titulo = "✅ Entrada Registrada";
-            String mensaje = registro.getUsuario().getNombre() + " marcó entrada a las " +
-                    registro.getHoraEntrada().toString();
+            String mensaje = registro.getUsuario().getNombre() + " marcó Entrada";
 
             notificacionService.enviarNotificacionAAdmins(titulo, mensaje, datos);
         } catch (Exception e) {
@@ -219,8 +218,7 @@ public class RegistroService {
             datos.put("hora", registro.getHoraSalida().toString());
 
             String titulo = "🚪 Salida Registrada";
-            String mensaje = registro.getUsuario().getNombre() + " marcó salida a las " +
-                    registro.getHoraSalida().toString();
+            String mensaje = registro.getUsuario().getNombre() + " marcó Salida";
 
             notificacionService.enviarNotificacionAAdmins(titulo, mensaje, datos);
         } catch (Exception e) {
