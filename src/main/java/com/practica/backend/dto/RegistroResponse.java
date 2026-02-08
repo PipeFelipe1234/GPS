@@ -20,8 +20,7 @@ public record RegistroResponse(
                 String nombre,
                 String foto,
                 String telefono,
-                String horasTrabajadas, // Formato "HH:mm:ss" - calculado en tiempo real o final
-                Long minutosTrabajados, // Total en minutos - para cálculos
+                Integer horasTrabajadas, // Total de horas trabajadas (entero)
                 Boolean enCurso // true si aún no ha marcado salida
 ) {
 }

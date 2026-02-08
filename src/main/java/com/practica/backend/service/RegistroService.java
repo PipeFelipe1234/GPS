@@ -110,9 +110,9 @@ public class RegistroService {
         registro.setReporte(request.reporte());
         registro.setPicture(request.picture());
 
-        // ⏱️ Calcular y guardar minutos trabajados
+        // ⏱️ Calcular y guardar horas trabajadas
         Duration duracion = Duration.between(registro.getHoraEntrada(), horaActual);
-        registro.setMinutosTrabajados(duracion.toMinutes());
+        registro.setHorasTrabajadas((int) duracion.toHours());
 
         Registro guardado = registroRepository.save(registro);
 
@@ -160,8 +160,8 @@ public class RegistroService {
             minutosTrabajados = duracion.toMinutes();
         } else {
             // 🔴 Turno finalizado - usar valor guardado o calcular
-            if (r.getMinutosTrabajados() != null) {
-                minutosTrabajados = r.getMinutosTrabajados();
+            if (r.getHorasTrabajadas() != null) {
+                minutosTrabajados = r.getHorasTrabajadas();
             } else {
                 Duration duracion = Duration.between(r.getHoraEntrada(), r.getHoraSalida());
                 minutosTrabajados = duracion.toMinutes();

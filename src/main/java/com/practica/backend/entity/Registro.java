@@ -41,8 +41,8 @@ public class Registro {
     // 📷 Foto/URL de imagen
     private String picture;
 
-    // ⏱️ Horas trabajadas (en minutos, para mayor precisión)
-    private Long minutosTrabajados;
+    // ⏱️ Horas trabajadas (solo horas enteras)
+    private Integer horasTrabajadas;
 
     public Registro() {
     }
@@ -170,11 +170,11 @@ public class Registro {
         this.picture = picture;
     }
 
-    public Long getMinutosTrabajados() {
-        return minutosTrabajados;
+    public Integer getHorasTrabajadas() {
+        return horasTrabajadas;
     }
 
-    public void setMinutosTrabajados(Long minutosTrabajados) {
-        this.minutosTrabajados = minutosTrabajados;
+    public void setHorasTrabajadas(Integer horasTrabajadas) {
+        this.horasTrabajadas = horasTrabajadas;
     }
 }
