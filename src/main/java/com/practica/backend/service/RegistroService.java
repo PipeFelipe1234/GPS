@@ -83,35 +83,39 @@ public class RegistroService {
             Usuario usuario,
             MarcarSalidaRequest request) {
 
-        LocalDate hoy = LocalDate.now();
-        LocalTime horaActual = LocalTime.now();
+        LocalDate fechaSalida = LocalDate.now();
+        LocalTime horaSalida = LocalTime.now();
 
         // Si viene fechaCreacion, usarla para obtener la fecha correcta
         LocalDateTime fechaHoraRegistro = parseISODateTime(request.fechaCreacion());
 
         if (fechaHoraRegistro != null) {
-            hoy = fechaHoraRegistro.toLocalDate();
-            horaActual = fechaHoraRegistro.toLocalTime();
+            fechaSalida = fechaHoraRegistro.toLocalDate();
+            horaSalida = fechaHoraRegistro.toLocalTime();
         }
 
+        // 🔄 Buscar cualquier registro sin salida (sin importar la fecha de entrada)
         Registro registro = registroRepository
-                .findByUsuarioAndFechaAndHoraSalidaIsNull(usuario, hoy)
-                .orElseThrow(() -> new RuntimeException("No hay entrada sin salida registrada para hoy"));
+                .findUltimoRegistroSinSalida(usuario)
+                .orElseThrow(() -> new RuntimeException("No hay entrada sin salida registrada"));
 
         // Validar precisión GPS
         if (request.precisionMetros() != null && request.precisionMetros() > 50) {
             throw new RuntimeException("Precisión GPS insuficiente en salida");
         }
 
-        registro.setHoraSalida(horaActual);
+        registro.setHoraSalida(horaSalida);
         registro.setLatitud(request.latitud());
         registro.setLongitud(request.longitud());
         registro.setPrecisionMetros(request.precisionMetros());
         registro.setReporte(request.reporte());
         registro.setPicture(request.picture());
 
-        // ⏱️ Calcular y guardar horas y minutos trabajados
-        Duration duracion = Duration.between(registro.getHoraEntrada(), horaActual);
+        // ⏱️ Calcular horas trabajadas considerando que pueden ser días diferentes
+        LocalDateTime fechaHoraEntrada = LocalDateTime.of(registro.getFecha(), registro.getHoraEntrada());
+        LocalDateTime fechaHoraSalidaFinal = LocalDateTime.of(fechaSalida, horaSalida);
+        Duration duracion = Duration.between(fechaHoraEntrada, fechaHoraSalidaFinal);
+
         registro.setHorasTrabajadas((int) duracion.toHours());
         registro.setMinutosTrabajados((int) duracion.toMinutes());
 

@@ -217,4 +217,33 @@ public class NotificacionService {
             System.out.println("✅ Token desactivado: " + token.substring(0, 20) + "...");
         });
     }
+
+    /**
+     * 📲 Envía notificación a TODOS los usuarios (ADMINs y USERs)
+     */
+    public void enviarNotificacionATodos(String titulo, String mensaje) {
+        System.out.println("📤 Enviando notificación a TODOS los usuarios...");
+        System.out.println("   Título: " + titulo);
+        System.out.println("   Mensaje: " + mensaje);
+
+        List<TokenDispositivo> todosLosTokens = tokenDispositivoRepository.findByActivoTrue();
+
+        if (todosLosTokens.isEmpty()) {
+            System.out.println("⚠️  No hay dispositivos registrados");
+            return;
+        }
+
+        System.out.println("📱 Encontrados " + todosLosTokens.size() + " dispositivo(s) registrados");
+
+        List<String> tokenList = todosLosTokens.stream()
+                .map(TokenDispositivo::getToken)
+                .toList();
+
+        Map<String, String> datos = Map.of(
+                "tipo", "advertencia_limpieza",
+                "titulo", titulo,
+                "mensaje", mensaje);
+
+        enviarNotificacionAMultiplesDispositivos(tokenList, titulo, mensaje, datos);
+    }
 }

@@ -20,4 +20,7 @@ public interface TokenDispositivoRepository extends JpaRepository<TokenDispositi
 
     @Query("SELECT t FROM TokenDispositivo t WHERE t.usuario.rol = 'ADMIN' AND t.activo = true")
     List<TokenDispositivo> findTokensActivosAdmins();
+
+    // 📲 Obtener todos los tokens activos (para notificaciones masivas)
+    List<TokenDispositivo> findByActivoTrue();
 }
