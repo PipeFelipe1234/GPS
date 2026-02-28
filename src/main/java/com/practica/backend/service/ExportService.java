@@ -59,6 +59,21 @@ public class ExportService {
                 .toUpperCase();
     }
 
+    /**
+     * Calcula el primer día del mes
+     */
+    private LocalDate getPrimerDiaMes(int mes, int anio) {
+        return LocalDate.of(anio, mes, 1);
+    }
+
+    /**
+     * Calcula el último día del mes
+     */
+    private LocalDate getUltimoDiaMes(int mes, int anio) {
+        return LocalDate.of(anio, mes, 1).withDayOfMonth(
+                LocalDate.of(anio, mes, 1).lengthOfMonth());
+    }
+
     // ============================
     // 📊 EXPORTAR A EXCEL
     // ============================
@@ -67,7 +82,9 @@ public class ExportService {
      * Exporta registros de un mes a Excel (para ADMIN - todos los registros)
      */
     public byte[] exportarExcelAdmin(int mes, int anio) throws Exception {
-        List<Registro> registros = registroRepository.findByMesYAnio(mes, anio);
+        LocalDate fechaInicio = getPrimerDiaMes(mes, anio);
+        LocalDate fechaFin = getUltimoDiaMes(mes, anio);
+        List<Registro> registros = registroRepository.findByMesYAnioRange(fechaInicio, fechaFin);
         return generarExcel(registros, mes, anio, true);
     }
 
@@ -75,7 +92,9 @@ public class ExportService {
      * Exporta registros de un mes a Excel (para USER - solo sus registros)
      */
     public byte[] exportarExcelUsuario(Usuario usuario, int mes, int anio) throws Exception {
-        List<Registro> registros = registroRepository.findByUsuarioAndMesYAnio(usuario, mes, anio);
+        LocalDate fechaInicio = getPrimerDiaMes(mes, anio);
+        LocalDate fechaFin = getUltimoDiaMes(mes, anio);
+        List<Registro> registros = registroRepository.findByUsuarioAndMesYAnioRange(usuario, fechaInicio, fechaFin);
         return generarExcel(registros, mes, anio, false);
     }
 
@@ -221,7 +240,9 @@ public class ExportService {
      * Exporta registros de un mes a PDF (para ADMIN)
      */
     public byte[] exportarPdfAdmin(int mes, int anio) throws Exception {
-        List<Registro> registros = registroRepository.findByMesYAnio(mes, anio);
+        LocalDate fechaInicio = getPrimerDiaMes(mes, anio);
+        LocalDate fechaFin = getUltimoDiaMes(mes, anio);
+        List<Registro> registros = registroRepository.findByMesYAnioRange(fechaInicio, fechaFin);
         return generarPdf(registros, mes, anio, true);
     }
 
@@ -229,7 +250,9 @@ public class ExportService {
      * Exporta registros de un mes a PDF (para USER)
      */
     public byte[] exportarPdfUsuario(Usuario usuario, int mes, int anio) throws Exception {
-        List<Registro> registros = registroRepository.findByUsuarioAndMesYAnio(usuario, mes, anio);
+        LocalDate fechaInicio = getPrimerDiaMes(mes, anio);
+        LocalDate fechaFin = getUltimoDiaMes(mes, anio);
+        List<Registro> registros = registroRepository.findByUsuarioAndMesYAnioRange(usuario, fechaInicio, fechaFin);
         return generarPdf(registros, mes, anio, false);
     }
 
@@ -341,7 +364,9 @@ public class ExportService {
      * Exporta registros de un mes a Word (para ADMIN)
      */
     public byte[] exportarWordAdmin(int mes, int anio) throws Exception {
-        List<Registro> registros = registroRepository.findByMesYAnio(mes, anio);
+        LocalDate fechaInicio = getPrimerDiaMes(mes, anio);
+        LocalDate fechaFin = getUltimoDiaMes(mes, anio);
+        List<Registro> registros = registroRepository.findByMesYAnioRange(fechaInicio, fechaFin);
         return generarWord(registros, mes, anio, true);
     }
 
@@ -349,7 +374,9 @@ public class ExportService {
      * Exporta registros de un mes a Word (para USER)
      */
     public byte[] exportarWordUsuario(Usuario usuario, int mes, int anio) throws Exception {
-        List<Registro> registros = registroRepository.findByUsuarioAndMesYAnio(usuario, mes, anio);
+        LocalDate fechaInicio = getPrimerDiaMes(mes, anio);
+        LocalDate fechaFin = getUltimoDiaMes(mes, anio);
+        List<Registro> registros = registroRepository.findByUsuarioAndMesYAnioRange(usuario, fechaInicio, fechaFin);
         return generarWord(registros, mes, anio, false);
     }
 

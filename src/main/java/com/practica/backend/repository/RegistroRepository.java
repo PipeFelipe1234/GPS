@@ -48,18 +48,20 @@ public interface RegistroRepository extends JpaRepository<Registro, Long> {
                         @Param("fechaInicio") LocalDate fechaInicio,
                         @Param("fechaFin") LocalDate fechaFin);
 
-        // 📅 OBTENER REGISTROS POR MES Y AÑO
-        @Query("SELECT r FROM Registro r WHERE MONTH(r.fecha) = :mes AND YEAR(r.fecha) = :anio ORDER BY r.fecha ASC, r.horaEntrada ASC")
-        List<Registro> findByMesYAnio(
-                        @Param("mes") int mes,
-                        @Param("anio") int anio);
+        // 📅 OBTENER REGISTROS POR MES Y AÑO (usando rango de fechas para mayor
+        // compatibilidad)
+        @Query("SELECT r FROM Registro r WHERE r.fecha >= :fechaInicio AND r.fecha <= :fechaFin ORDER BY r.fecha ASC, r.horaEntrada ASC")
+        List<Registro> findByMesYAnioRange(
+                        @Param("fechaInicio") LocalDate fechaInicio,
+                        @Param("fechaFin") LocalDate fechaFin);
 
-        // 📅 OBTENER REGISTROS DE UN USUARIO POR MES Y AÑO
-        @Query("SELECT r FROM Registro r WHERE r.usuario = :usuario AND MONTH(r.fecha) = :mes AND YEAR(r.fecha) = :anio ORDER BY r.fecha ASC, r.horaEntrada ASC")
-        List<Registro> findByUsuarioAndMesYAnio(
+        // 📅 OBTENER REGISTROS DE UN USUARIO POR MES Y AÑO (usando rango de fechas para
+        // mayor compatibilidad)
+        @Query("SELECT r FROM Registro r WHERE r.usuario = :usuario AND r.fecha >= :fechaInicio AND r.fecha <= :fechaFin ORDER BY r.fecha ASC, r.horaEntrada ASC")
+        List<Registro> findByUsuarioAndMesYAnioRange(
                         @Param("usuario") Usuario usuario,
-                        @Param("mes") int mes,
-                        @Param("anio") int anio);
+                        @Param("fechaInicio") LocalDate fechaInicio,
+                        @Param("fechaFin") LocalDate fechaFin);
 
         // 🗑️ ELIMINAR REGISTROS ANTERIORES A UNA FECHA
         @Modifying
@@ -67,15 +69,15 @@ public interface RegistroRepository extends JpaRepository<Registro, Long> {
         @Query("DELETE FROM Registro r WHERE r.fecha < :fechaLimite")
         int deleteByFechaAnteriorA(@Param("fechaLimite") LocalDate fechaLimite);
 
-        // 🗑️ ELIMINAR REGISTROS DE UN MES Y AÑO ESPECÍFICO
+        // 🗑️ ELIMINAR REGISTROS DE UN MES Y AÑO ESPECÍFICO (usando rango de fechas)
         @Modifying
         @Transactional
-        @Query("DELETE FROM Registro r WHERE MONTH(r.fecha) = :mes AND YEAR(r.fecha) = :anio")
-        int deleteByMesYAnio(@Param("mes") int mes, @Param("anio") int anio);
+        @Query("DELETE FROM Registro r WHERE r.fecha >= :fechaInicio AND r.fecha <= :fechaFin")
+        int deleteByMesYAnioRange(@Param("fechaInicio") LocalDate fechaInicio, @Param("fechaFin") LocalDate fechaFin);
 
-        // 📊 CONTAR REGISTROS DE UN MES Y AÑO
-        @Query("SELECT COUNT(r) FROM Registro r WHERE MONTH(r.fecha) = :mes AND YEAR(r.fecha) = :anio")
-        long countByMesYAnio(@Param("mes") int mes, @Param("anio") int anio);
+        // 📊 CONTAR REGISTROS DE UN MES Y AÑO (usando rango de fechas)
+        @Query("SELECT COUNT(r) FROM Registro r WHERE r.fecha >= :fechaInicio AND r.fecha <= :fechaFin")
+        long countByMesYAnioRange(@Param("fechaInicio") LocalDate fechaInicio, @Param("fechaFin") LocalDate fechaFin);
 
         // 📅 OBTENER EL MES MÁS ANTIGUO CON REGISTROS
         @Query("SELECT MIN(r.fecha) FROM Registro r")
