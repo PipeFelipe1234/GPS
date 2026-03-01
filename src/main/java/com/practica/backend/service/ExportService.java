@@ -51,6 +51,10 @@ public class ExportService {
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
     private static final Locale LOCALE_ES = new Locale("es", "ES");
 
+    // Fecha de corte: registros antes de esta fecha se guardaron en UTC
+    // A partir de esta fecha, los registros ya están en hora Colombia
+    private static final LocalDate FECHA_CORTE_TIMEZONE = LocalDate.of(2026, 3, 1);
+
     // Encabezados de las columnas (10 columnas - sin latitud/longitud)
     private static final String[] HEADERS = {
             "Fecha", "Identificación", "Empleado", "Hora Entrada", "Ubicación Entrada",
@@ -221,12 +225,14 @@ public class ExportService {
                 createExcelCell(row, col++, registro.getUsuario().getIdentificacion(), dataStyle);
                 // Empleado
                 createExcelCell(row, col++, registro.getUsuario().getNombre(), dataStyle);
-                // Hora Entrada (convertida a hora Colombia)
-                createExcelCell(row, col++, formatTimeToColombiaZone(registro.getHoraEntrada()), dataStyle);
+                // Hora Entrada (con ajuste de timezone según fecha)
+                createExcelCell(row, col++, formatTimeWithTimezone(registro.getHoraEntrada(), registro.getFecha()),
+                        dataStyle);
                 // Ubicación Entrada (dirección textual)
                 createExcelCell(row, col++, formatUbicacionEntrada(registro), dataStyle);
-                // Hora Salida (convertida a hora Colombia)
-                createExcelCell(row, col++, formatTimeToColombiaZone(registro.getHoraSalida()), dataStyle);
+                // Hora Salida (con ajuste de timezone según fecha)
+                createExcelCell(row, col++, formatTimeWithTimezone(registro.getHoraSalida(), registro.getFecha()),
+                        dataStyle);
                 // Ubicación Salida (dirección textual)
                 createExcelCell(row, col++, formatUbicacionSalida(registro), dataStyle);
                 // Reporte
@@ -374,12 +380,12 @@ public class ExportService {
             addPdfCell(table, registro.getUsuario().getIdentificacion(), dataFont);
             // Empleado
             addPdfCell(table, registro.getUsuario().getNombre(), dataFont);
-            // Hora Entrada (convertida a hora Colombia)
-            addPdfCell(table, formatTimeToColombiaZone(registro.getHoraEntrada()), dataFont);
+            // Hora Entrada (con ajuste de timezone según fecha)
+            addPdfCell(table, formatTimeWithTimezone(registro.getHoraEntrada(), registro.getFecha()), dataFont);
             // Ubicación Entrada (dirección textual)
             addPdfCell(table, truncate(formatUbicacionEntrada(registro), 35), dataFont);
-            // Hora Salida (convertida a hora Colombia)
-            addPdfCell(table, formatTimeToColombiaZone(registro.getHoraSalida()), dataFont);
+            // Hora Salida (con ajuste de timezone según fecha)
+            addPdfCell(table, formatTimeWithTimezone(registro.getHoraSalida(), registro.getFecha()), dataFont);
             // Ubicación Salida (dirección textual)
             addPdfCell(table, truncate(formatUbicacionSalida(registro), 35), dataFont);
             // Reporte
@@ -414,15 +420,23 @@ public class ExportService {
     // ============================
 
     /**
-     * Convierte hora almacenada (asumida en UTC) a hora Colombia.
-     * Los registros antiguos se guardaron en UTC, así que restamos 5 horas.
+     * Convierte hora según la fecha del registro.
+     * - Registros antiguos (antes del 1 marzo 2026): estaban en UTC, restamos 5
+     * horas
+     * - Registros nuevos (desde 1 marzo 2026): ya están en hora Colombia
      */
-    private String formatTimeToColombiaZone(java.time.LocalTime time) {
+    private String formatTimeWithTimezone(java.time.LocalTime time, LocalDate fechaRegistro) {
         if (time == null)
             return "-";
-        // Convertir de UTC a Colombia (restar 5 horas)
-        java.time.LocalTime horaColombina = time.minusHours(5);
-        return horaColombina.format(TIME_FORMATTER);
+
+        // Si el registro es anterior a la fecha de corte, convertir de UTC a Colombia
+        if (fechaRegistro != null && fechaRegistro.isBefore(FECHA_CORTE_TIMEZONE)) {
+            java.time.LocalTime horaColombina = time.minusHours(5);
+            return horaColombina.format(TIME_FORMATTER);
+        }
+
+        // Registros nuevos ya están en hora Colombia
+        return time.format(TIME_FORMATTER);
     }
 
     private String formatTime(java.time.LocalTime time) {
