@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.format.TextStyle;
 import java.time.temporal.ChronoUnit;
 import java.util.Locale;
@@ -26,6 +27,7 @@ public class ScheduledCleanupService {
     private final RegistroRepository registroRepository;
     private final NotificacionService notificacionService;
     private static final Locale LOCALE_ES = new Locale("es", "ES");
+    private static final ZoneId ZONA_COLOMBIA = ZoneId.of("America/Bogota");
 
     // Días hábiles de advertencia antes de la eliminación
     private static final int DIAS_HABILES_ADVERTENCIA = 5;
@@ -58,7 +60,7 @@ public class ScheduledCleanupService {
      */
     @Scheduled(cron = "0 5 0 * * *") // Todos los días a las 00:05
     public void ejecutarLimpiezaAutomatica() {
-        LocalDate hoy = LocalDate.now();
+        LocalDate hoy = LocalDate.now(ZONA_COLOMBIA);
 
         // Calcular el mes que debe ser eliminado (2 meses atrás)
         LocalDate mesAEliminar = hoy.minusMonths(2);
@@ -108,7 +110,7 @@ public class ScheduledCleanupService {
      * Obtiene información sobre la próxima limpieza automática
      */
     public CleanupInfoResponse obtenerInfoLimpieza() {
-        LocalDate hoy = LocalDate.now();
+        LocalDate hoy = LocalDate.now(ZONA_COLOMBIA);
 
         // El primer día del próximo mes es cuando se ejecuta la eliminación
         LocalDate fechaEliminacion = hoy.withDayOfMonth(1).plusMonths(1);
@@ -177,7 +179,7 @@ public class ScheduledCleanupService {
             return meses;
         }
 
-        LocalDate hoy = LocalDate.now();
+        LocalDate hoy = LocalDate.now(ZONA_COLOMBIA);
         LocalDate fecha = fechaMasAntigua.withDayOfMonth(1);
 
         while (!fecha.isAfter(hoy)) {

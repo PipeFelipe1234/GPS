@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.Duration;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
@@ -24,6 +25,7 @@ public class RegistroService {
     private final RegistroRepository registroRepository;
     private final NotificacionService notificacionService;
     private static final DateTimeFormatter ISO_FORMATTER = DateTimeFormatter.ISO_DATE_TIME;
+    private static final ZoneId ZONA_COLOMBIA = ZoneId.of("America/Bogota");
 
     public RegistroService(RegistroRepository registroRepository,
             NotificacionService notificacionService) {
@@ -48,8 +50,8 @@ public class RegistroService {
 
     public RegistroResponse marcarEntrada(Usuario usuario, MarcarEntradaRequest request) {
 
-        LocalDate hoy = LocalDate.now();
-        LocalTime horaActual = LocalTime.now();
+        LocalDate hoy = LocalDate.now(ZONA_COLOMBIA);
+        LocalTime horaActual = LocalTime.now(ZONA_COLOMBIA);
 
         // Validar precisión GPS
         if (request.precisionMetrosCheckin() != null && request.precisionMetrosCheckin() > 50) {
@@ -84,8 +86,8 @@ public class RegistroService {
             Usuario usuario,
             MarcarSalidaRequest request) {
 
-        LocalDate fechaSalida = LocalDate.now();
-        LocalTime horaSalida = LocalTime.now();
+        LocalDate fechaSalida = LocalDate.now(ZONA_COLOMBIA);
+        LocalTime horaSalida = LocalTime.now(ZONA_COLOMBIA);
 
         // Si viene fechaCreacion, usarla para obtener la fecha correcta
         LocalDateTime fechaHoraRegistro = parseISODateTime(request.fechaCreacion());

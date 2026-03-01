@@ -20,11 +20,14 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.awt.Color;
 import java.io.ByteArrayOutputStream;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.TextStyle;
 import java.util.List;
@@ -41,7 +44,10 @@ import java.util.Locale;
 @Service
 public class ExportService {
 
+    private static final Logger logger = LoggerFactory.getLogger(ExportService.class);
+
     private final RegistroRepository registroRepository;
+    private static final ZoneId ZONA_COLOMBIA = ZoneId.of("America/Bogota");
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
     private static final Locale LOCALE_ES = new Locale("es", "ES");
@@ -92,7 +98,13 @@ public class ExportService {
     public byte[] exportarExcelAdmin(int mes, int anio) throws Exception {
         LocalDate fechaInicio = getPrimerDiaMes(mes, anio);
         LocalDate fechaFin = getUltimoDiaMes(mes, anio);
+
+        logger.info("Exportando Excel - Mes: {}, Año: {}, Rango: {} a {}", mes, anio, fechaInicio, fechaFin);
+
         List<Registro> registros = registroRepository.findByMesYAnioRange(fechaInicio, fechaFin);
+
+        logger.info("Registros encontrados: {}", registros.size());
+
         return generarExcel(registros, mes, anio);
     }
 
@@ -153,7 +165,7 @@ public class ExportService {
             // Subtítulo con fecha de generación
             org.apache.poi.ss.usermodel.Row subtitleRow = sheet.createRow(1);
             org.apache.poi.ss.usermodel.Cell subtitleCell = subtitleRow.createCell(0);
-            subtitleCell.setCellValue("Generado el: " + LocalDate.now().format(DATE_FORMATTER));
+            subtitleCell.setCellValue("Generado el: " + LocalDate.now(ZONA_COLOMBIA).format(DATE_FORMATTER));
             sheet.addMergedRegion(new CellRangeAddress(1, 1, 0, HEADERS.length - 1));
 
             // Encabezados
@@ -229,7 +241,13 @@ public class ExportService {
     public byte[] exportarPdfAdmin(int mes, int anio) throws Exception {
         LocalDate fechaInicio = getPrimerDiaMes(mes, anio);
         LocalDate fechaFin = getUltimoDiaMes(mes, anio);
+
+        logger.info("Exportando PDF - Mes: {}, Año: {}, Rango: {} a {}", mes, anio, fechaInicio, fechaFin);
+
         List<Registro> registros = registroRepository.findByMesYAnioRange(fechaInicio, fechaFin);
+
+        logger.info("Registros encontrados: {}", registros.size());
+
         return generarPdf(registros, mes, anio);
     }
 
@@ -266,7 +284,8 @@ public class ExportService {
         subtitle.setSpacingAfter(10);
         document.add(subtitle);
 
-        Paragraph fecha = new Paragraph("Generado el: " + LocalDate.now().format(DATE_FORMATTER), subtitleFont);
+        Paragraph fecha = new Paragraph("Generado el: " + LocalDate.now(ZONA_COLOMBIA).format(DATE_FORMATTER),
+                subtitleFont);
         fecha.setAlignment(Element.ALIGN_CENTER);
         fecha.setSpacingAfter(20);
         document.add(fecha);

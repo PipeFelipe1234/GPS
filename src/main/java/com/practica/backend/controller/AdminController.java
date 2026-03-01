@@ -13,12 +13,15 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Map;
 
 @RestController
 @RequestMapping("/api/admin")
 @CrossOrigin(origins = "*")
 public class AdminController {
+
+    private static final ZoneId ZONA_COLOMBIA = ZoneId.of("America/Bogota");
 
     private final RegistroService registroService;
     private final UsuarioService usuarioService;
@@ -95,8 +98,9 @@ public class AdminController {
     @PostMapping("/exportar/pdf")
     public ResponseEntity<byte[]> exportarPdf(@RequestBody ExportRequest request) {
         try {
-            int mes = request.mes() != null ? request.mes() : LocalDate.now().getMonthValue();
-            int anio = request.anio() != null ? request.anio() : LocalDate.now().getYear();
+            LocalDate fechaActual = LocalDate.now(ZONA_COLOMBIA);
+            int mes = request.mes() != null ? request.mes() : fechaActual.getMonthValue();
+            int anio = request.anio() != null ? request.anio() : fechaActual.getYear();
 
             byte[] pdfBytes = exportService.exportarPdfAdmin(mes, anio);
 
@@ -118,8 +122,9 @@ public class AdminController {
     @PostMapping("/exportar/excel")
     public ResponseEntity<byte[]> exportarExcel(@RequestBody ExportRequest request) {
         try {
-            int mes = request.mes() != null ? request.mes() : LocalDate.now().getMonthValue();
-            int anio = request.anio() != null ? request.anio() : LocalDate.now().getYear();
+            LocalDate fechaActual = LocalDate.now(ZONA_COLOMBIA);
+            int mes = request.mes() != null ? request.mes() : fechaActual.getMonthValue();
+            int anio = request.anio() != null ? request.anio() : fechaActual.getYear();
 
             byte[] excelBytes = exportService.exportarExcelAdmin(mes, anio);
 
