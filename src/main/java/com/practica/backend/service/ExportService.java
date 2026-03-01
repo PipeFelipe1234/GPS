@@ -94,6 +94,7 @@ public class ExportService {
 
     /**
      * Exporta registros de un mes a Excel (para ADMIN - todos los registros)
+     * Usa findAll() + filtrado en Java para máxima compatibilidad
      */
     public byte[] exportarExcelAdmin(int mes, int anio) throws Exception {
         LocalDate fechaInicio = getPrimerDiaMes(mes, anio);
@@ -101,9 +102,26 @@ public class ExportService {
 
         logger.info("Exportando Excel - Mes: {}, Año: {}, Rango: {} a {}", mes, anio, fechaInicio, fechaFin);
 
-        List<Registro> registros = registroRepository.findByMesYAnioRange(fechaInicio, fechaFin);
+        // Obtener TODOS los registros y filtrar en Java (igual que
+        // /api/admin/registros)
+        List<Registro> todosRegistros = registroRepository.findAll();
+        logger.info("Total registros en BD: {}", todosRegistros.size());
 
-        logger.info("Registros encontrados: {}", registros.size());
+        List<Registro> registros = todosRegistros.stream()
+                .filter(r -> r.getFecha() != null)
+                .filter(r -> !r.getFecha().isBefore(fechaInicio) && !r.getFecha().isAfter(fechaFin))
+                .sorted((r1, r2) -> {
+                    int fechaCompare = r1.getFecha().compareTo(r2.getFecha());
+                    if (fechaCompare != 0)
+                        return fechaCompare;
+                    if (r1.getHoraEntrada() != null && r2.getHoraEntrada() != null) {
+                        return r1.getHoraEntrada().compareTo(r2.getHoraEntrada());
+                    }
+                    return 0;
+                })
+                .toList();
+
+        logger.info("Registros filtrados para mes {}/{}: {}", mes, anio, registros.size());
 
         return generarExcel(registros, mes, anio);
     }
@@ -114,7 +132,23 @@ public class ExportService {
     public byte[] exportarExcelUsuario(Usuario usuario, int mes, int anio) throws Exception {
         LocalDate fechaInicio = getPrimerDiaMes(mes, anio);
         LocalDate fechaFin = getUltimoDiaMes(mes, anio);
-        List<Registro> registros = registroRepository.findByUsuarioAndMesYAnioRange(usuario, fechaInicio, fechaFin);
+
+        // Obtener registros del usuario y filtrar por fecha
+        List<Registro> todosRegistros = registroRepository.findAllByUsuario(usuario);
+        List<Registro> registros = todosRegistros.stream()
+                .filter(r -> r.getFecha() != null)
+                .filter(r -> !r.getFecha().isBefore(fechaInicio) && !r.getFecha().isAfter(fechaFin))
+                .sorted((r1, r2) -> {
+                    int fechaCompare = r1.getFecha().compareTo(r2.getFecha());
+                    if (fechaCompare != 0)
+                        return fechaCompare;
+                    if (r1.getHoraEntrada() != null && r2.getHoraEntrada() != null) {
+                        return r1.getHoraEntrada().compareTo(r2.getHoraEntrada());
+                    }
+                    return 0;
+                })
+                .toList();
+
         return generarExcel(registros, mes, anio);
     }
 
@@ -237,6 +271,7 @@ public class ExportService {
 
     /**
      * Exporta registros de un mes a PDF (para ADMIN)
+     * Usa findAll() + filtrado en Java para máxima compatibilidad
      */
     public byte[] exportarPdfAdmin(int mes, int anio) throws Exception {
         LocalDate fechaInicio = getPrimerDiaMes(mes, anio);
@@ -244,9 +279,26 @@ public class ExportService {
 
         logger.info("Exportando PDF - Mes: {}, Año: {}, Rango: {} a {}", mes, anio, fechaInicio, fechaFin);
 
-        List<Registro> registros = registroRepository.findByMesYAnioRange(fechaInicio, fechaFin);
+        // Obtener TODOS los registros y filtrar en Java (igual que
+        // /api/admin/registros)
+        List<Registro> todosRegistros = registroRepository.findAll();
+        logger.info("Total registros en BD: {}", todosRegistros.size());
 
-        logger.info("Registros encontrados: {}", registros.size());
+        List<Registro> registros = todosRegistros.stream()
+                .filter(r -> r.getFecha() != null)
+                .filter(r -> !r.getFecha().isBefore(fechaInicio) && !r.getFecha().isAfter(fechaFin))
+                .sorted((r1, r2) -> {
+                    int fechaCompare = r1.getFecha().compareTo(r2.getFecha());
+                    if (fechaCompare != 0)
+                        return fechaCompare;
+                    if (r1.getHoraEntrada() != null && r2.getHoraEntrada() != null) {
+                        return r1.getHoraEntrada().compareTo(r2.getHoraEntrada());
+                    }
+                    return 0;
+                })
+                .toList();
+
+        logger.info("Registros filtrados para mes {}/{}: {}", mes, anio, registros.size());
 
         return generarPdf(registros, mes, anio);
     }
@@ -257,7 +309,23 @@ public class ExportService {
     public byte[] exportarPdfUsuario(Usuario usuario, int mes, int anio) throws Exception {
         LocalDate fechaInicio = getPrimerDiaMes(mes, anio);
         LocalDate fechaFin = getUltimoDiaMes(mes, anio);
-        List<Registro> registros = registroRepository.findByUsuarioAndMesYAnioRange(usuario, fechaInicio, fechaFin);
+
+        // Obtener registros del usuario y filtrar por fecha
+        List<Registro> todosRegistros = registroRepository.findAllByUsuario(usuario);
+        List<Registro> registros = todosRegistros.stream()
+                .filter(r -> r.getFecha() != null)
+                .filter(r -> !r.getFecha().isBefore(fechaInicio) && !r.getFecha().isAfter(fechaFin))
+                .sorted((r1, r2) -> {
+                    int fechaCompare = r1.getFecha().compareTo(r2.getFecha());
+                    if (fechaCompare != 0)
+                        return fechaCompare;
+                    if (r1.getHoraEntrada() != null && r2.getHoraEntrada() != null) {
+                        return r1.getHoraEntrada().compareTo(r2.getHoraEntrada());
+                    }
+                    return 0;
+                })
+                .toList();
+
         return generarPdf(registros, mes, anio);
     }
 
