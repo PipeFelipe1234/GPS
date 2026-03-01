@@ -36,10 +36,9 @@ import java.util.Locale;
 /**
  * Servicio para exportar registros a PDF y Excel.
  * 
- * ENCABEZADOS:
+ * ENCABEZADOS (10 columnas):
  * Fecha | Identificación | Empleado | Hora Entrada | Ubicación Entrada |
- * Latitud e | Longitud e | Hora Salida | Ubicación Salida |
- * Latitud s | Longitud s | Reporte | Foto | Horas Trabajadas
+ * Hora Salida | Ubicación Salida | Reporte | Foto | Horas Trabajadas
  */
 @Service
 public class ExportService {
@@ -52,11 +51,10 @@ public class ExportService {
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
     private static final Locale LOCALE_ES = new Locale("es", "ES");
 
-    // Encabezados de las columnas
+    // Encabezados de las columnas (10 columnas - sin latitud/longitud)
     private static final String[] HEADERS = {
             "Fecha", "Identificación", "Empleado", "Hora Entrada", "Ubicación Entrada",
-            "Latitud e", "Longitud e", "Hora Salida", "Ubicación Salida",
-            "Latitud s", "Longitud s", "Reporte", "Foto", "Horas Trabajadas"
+            "Hora Salida", "Ubicación Salida", "Reporte", "Foto", "Horas Trabajadas"
     };
 
     public ExportService(RegistroRepository registroRepository) {
@@ -223,22 +221,14 @@ public class ExportService {
                 createExcelCell(row, col++, registro.getUsuario().getIdentificacion(), dataStyle);
                 // Empleado
                 createExcelCell(row, col++, registro.getUsuario().getNombre(), dataStyle);
-                // Hora Entrada
-                createExcelCell(row, col++, formatTime(registro.getHoraEntrada()), dataStyle);
-                // Ubicación Entrada (dirección - se muestra coordenadas si no hay dirección)
+                // Hora Entrada (convertida a hora Colombia)
+                createExcelCell(row, col++, formatTimeToColombiaZone(registro.getHoraEntrada()), dataStyle);
+                // Ubicación Entrada (dirección textual)
                 createExcelCell(row, col++, formatUbicacionEntrada(registro), dataStyle);
-                // Latitud e (entrada/checkin)
-                createExcelCell(row, col++, formatCoordenada(registro.getLatitudCheckin()), dataStyle);
-                // Longitud e (entrada/checkin)
-                createExcelCell(row, col++, formatCoordenada(registro.getLongitudCheckin()), dataStyle);
-                // Hora Salida
-                createExcelCell(row, col++, formatTime(registro.getHoraSalida()), dataStyle);
-                // Ubicación Salida (dirección)
+                // Hora Salida (convertida a hora Colombia)
+                createExcelCell(row, col++, formatTimeToColombiaZone(registro.getHoraSalida()), dataStyle);
+                // Ubicación Salida (dirección textual)
                 createExcelCell(row, col++, formatUbicacionSalida(registro), dataStyle);
-                // Latitud s (salida/checkout)
-                createExcelCell(row, col++, formatCoordenada(registro.getLatitud()), dataStyle);
-                // Longitud s (salida/checkout)
-                createExcelCell(row, col++, formatCoordenada(registro.getLongitud()), dataStyle);
                 // Reporte
                 createExcelCell(row, col++, registro.getReporte() != null ? registro.getReporte() : "", dataStyle);
                 // Foto
@@ -358,12 +348,12 @@ public class ExportService {
         fecha.setSpacingAfter(20);
         document.add(fecha);
 
-        // Tabla con 14 columnas
+        // Tabla con 10 columnas
         PdfPTable table = new PdfPTable(HEADERS.length);
         table.setWidthPercentage(100);
 
-        // Anchos relativos de las columnas
-        float[] columnWidths = { 6, 7, 10, 5, 10, 6, 6, 5, 10, 6, 6, 12, 8, 6 };
+        // Anchos relativos de las columnas (10 columnas)
+        float[] columnWidths = { 8, 10, 14, 7, 18, 7, 18, 8, 5, 7 };
         table.setWidths(columnWidths);
 
         // Encabezados
@@ -384,24 +374,16 @@ public class ExportService {
             addPdfCell(table, registro.getUsuario().getIdentificacion(), dataFont);
             // Empleado
             addPdfCell(table, registro.getUsuario().getNombre(), dataFont);
-            // Hora Entrada
-            addPdfCell(table, formatTime(registro.getHoraEntrada()), dataFont);
-            // Ubicación Entrada
-            addPdfCell(table, formatUbicacionEntrada(registro), dataFont);
-            // Latitud e
-            addPdfCell(table, formatCoordenada(registro.getLatitudCheckin()), dataFont);
-            // Longitud e
-            addPdfCell(table, formatCoordenada(registro.getLongitudCheckin()), dataFont);
-            // Hora Salida
-            addPdfCell(table, formatTime(registro.getHoraSalida()), dataFont);
-            // Ubicación Salida
-            addPdfCell(table, formatUbicacionSalida(registro), dataFont);
-            // Latitud s
-            addPdfCell(table, formatCoordenada(registro.getLatitud()), dataFont);
-            // Longitud s
-            addPdfCell(table, formatCoordenada(registro.getLongitud()), dataFont);
+            // Hora Entrada (convertida a hora Colombia)
+            addPdfCell(table, formatTimeToColombiaZone(registro.getHoraEntrada()), dataFont);
+            // Ubicación Entrada (dirección textual)
+            addPdfCell(table, truncate(formatUbicacionEntrada(registro), 35), dataFont);
+            // Hora Salida (convertida a hora Colombia)
+            addPdfCell(table, formatTimeToColombiaZone(registro.getHoraSalida()), dataFont);
+            // Ubicación Salida (dirección textual)
+            addPdfCell(table, truncate(formatUbicacionSalida(registro), 35), dataFont);
             // Reporte
-            addPdfCell(table, truncate(registro.getReporte(), 25), dataFont);
+            addPdfCell(table, truncate(registro.getReporte(), 20), dataFont);
             // Foto
             addPdfCell(table, registro.getPicture() != null ? "Sí" : "No", dataFont);
             // Horas Trabajadas
@@ -431,20 +413,30 @@ public class ExportService {
     // 🔧 UTILIDADES
     // ============================
 
+    /**
+     * Convierte hora almacenada (asumida en UTC) a hora Colombia.
+     * Los registros antiguos se guardaron en UTC, así que restamos 5 horas.
+     */
+    private String formatTimeToColombiaZone(java.time.LocalTime time) {
+        if (time == null)
+            return "-";
+        // Convertir de UTC a Colombia (restar 5 horas)
+        java.time.LocalTime horaColombina = time.minusHours(5);
+        return horaColombina.format(TIME_FORMATTER);
+    }
+
     private String formatTime(java.time.LocalTime time) {
         if (time == null)
             return "-";
         return time.format(TIME_FORMATTER);
     }
 
-    private String formatCoordenada(Double valor) {
-        if (valor == null)
-            return "-";
-        return String.format("%.6f", valor);
-    }
-
     private String formatUbicacionEntrada(Registro registro) {
-        // Si hay coordenadas de entrada, mostrar link a Google Maps
+        // Usar el campo de dirección textual
+        if (registro.getUbicacionEntrada() != null && !registro.getUbicacionEntrada().trim().isEmpty()) {
+            return registro.getUbicacionEntrada();
+        }
+        // Fallback: si no hay dirección pero hay coordenadas, mostrar coordenadas
         if (registro.getLatitudCheckin() != null && registro.getLongitudCheckin() != null) {
             return String.format("%.4f, %.4f", registro.getLatitudCheckin(), registro.getLongitudCheckin());
         }
@@ -452,7 +444,11 @@ public class ExportService {
     }
 
     private String formatUbicacionSalida(Registro registro) {
-        // Si hay coordenadas de salida, mostrar link a Google Maps
+        // Usar el campo de dirección textual
+        if (registro.getUbicacionSalida() != null && !registro.getUbicacionSalida().trim().isEmpty()) {
+            return registro.getUbicacionSalida();
+        }
+        // Fallback: si no hay dirección pero hay coordenadas, mostrar coordenadas
         if (registro.getLatitud() != null && registro.getLongitud() != null) {
             return String.format("%.4f, %.4f", registro.getLatitud(), registro.getLongitud());
         }

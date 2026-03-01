@@ -41,6 +41,13 @@ public class Registro {
     // 📷 Foto/URL de imagen
     private String picture;
 
+    // 📍 Ubicación textual (dirección) de entrada y salida
+    @Column(columnDefinition = "TEXT")
+    private String ubicacionEntrada;
+
+    @Column(columnDefinition = "TEXT")
+    private String ubicacionSalida;
+
     // ⏱️ Horas trabajadas (solo horas enteras)
     private Integer horasTrabajadas;
 
@@ -187,5 +194,21 @@ public class Registro {
 
     public void setMinutosTrabajados(Integer minutosTrabajados) {
         this.minutosTrabajados = minutosTrabajados;
+    }
+
+    public String getUbicacionEntrada() {
+        return ubicacionEntrada;
+    }
+
+    public void setUbicacionEntrada(String ubicacionEntrada) {
+        this.ubicacionEntrada = ubicacionEntrada;
+    }
+
+    public String getUbicacionSalida() {
+        return ubicacionSalida;
+    }
+
+    public void setUbicacionSalida(String ubicacionSalida) {
+        this.ubicacionSalida = ubicacionSalida;
     }
 }
