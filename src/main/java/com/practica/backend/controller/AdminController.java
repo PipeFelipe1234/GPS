@@ -137,30 +137,6 @@ public class AdminController {
     }
 
     /**
-     * Exporta TODOS los registros del mes a Word (todos los empleados)
-     */
-    @PostMapping("/exportar/word")
-    public ResponseEntity<byte[]> exportarWord(@RequestBody ExportRequest request) {
-        try {
-            int mes = request.mes() != null ? request.mes() : LocalDate.now().getMonthValue();
-            int anio = request.anio() != null ? request.anio() : LocalDate.now().getYear();
-
-            byte[] wordBytes = exportService.exportarWordAdmin(mes, anio);
-
-            String nombreMes = exportService.getNombreMes(mes);
-            String filename = "Registros_Todos_" + nombreMes + "_" + anio + ".docx";
-
-            return ResponseEntity.ok()
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
-                    .contentType(MediaType
-                            .parseMediaType("application/vnd.openxmlformats-officedocument.wordprocessingml.document"))
-                    .body(wordBytes);
-        } catch (Exception e) {
-            throw new RuntimeException("Error al generar Word: " + e.getMessage());
-        }
-    }
-
-    /**
      * Fuerza la eliminación de registros de un mes específico (SOLO ADMIN)
      * Útil para pruebas o limpieza manual
      */

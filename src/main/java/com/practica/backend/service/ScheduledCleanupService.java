@@ -28,7 +28,7 @@ public class ScheduledCleanupService {
     private static final Locale LOCALE_ES = new Locale("es", "ES");
 
     // Días hábiles de advertencia antes de la eliminación
-    private static final int DIAS_HABILES_ADVERTENCIA = 4;
+    private static final int DIAS_HABILES_ADVERTENCIA = 5;
 
     /**
      * Calcula el primer día del mes

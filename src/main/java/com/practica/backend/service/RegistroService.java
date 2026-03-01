@@ -25,7 +25,8 @@ public class RegistroService {
     private final NotificacionService notificacionService;
     private static final DateTimeFormatter ISO_FORMATTER = DateTimeFormatter.ISO_DATE_TIME;
 
-    public RegistroService(RegistroRepository registroRepository, NotificacionService notificacionService) {
+    public RegistroService(RegistroRepository registroRepository,
+            NotificacionService notificacionService) {
         this.registroRepository = registroRepository;
         this.notificacionService = notificacionService;
     }
