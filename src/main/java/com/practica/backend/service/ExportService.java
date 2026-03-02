@@ -359,7 +359,8 @@ public class ExportService {
         table.setWidthPercentage(100);
 
         // Anchos relativos de las columnas (10 columnas)
-        float[] columnWidths = { 8, 10, 14, 7, 18, 7, 18, 8, 5, 7 };
+        // Ajustados para mostrar Reporte completo y URL de Foto
+        float[] columnWidths = { 7, 8, 10, 6, 14, 6, 14, 12, 16, 7 };
         table.setWidths(columnWidths);
 
         // Encabezados
@@ -383,15 +384,15 @@ public class ExportService {
             // Hora Entrada (con ajuste de timezone según fecha)
             addPdfCell(table, formatTimeWithTimezone(registro.getHoraEntrada(), registro.getFecha()), dataFont);
             // Ubicación Entrada (dirección textual)
-            addPdfCell(table, truncate(formatUbicacionEntrada(registro), 35), dataFont);
+            addPdfCellWrap(table, formatUbicacionEntrada(registro), dataFont);
             // Hora Salida (con ajuste de timezone según fecha)
             addPdfCell(table, formatTimeWithTimezone(registro.getHoraSalida(), registro.getFecha()), dataFont);
             // Ubicación Salida (dirección textual)
-            addPdfCell(table, truncate(formatUbicacionSalida(registro), 35), dataFont);
-            // Reporte
-            addPdfCell(table, truncate(registro.getReporte(), 20), dataFont);
-            // Foto
-            addPdfCell(table, registro.getPicture() != null ? "Sí" : "No", dataFont);
+            addPdfCellWrap(table, formatUbicacionSalida(registro), dataFont);
+            // Reporte (texto completo con wrap)
+            addPdfCellWrap(table, registro.getReporte() != null ? registro.getReporte() : "-", dataFont);
+            // Foto (URL completa)
+            addPdfCellWrap(table, registro.getPicture() != null ? registro.getPicture() : "-", dataFont);
             // Horas Trabajadas
             addPdfCell(table, formatHorasTrabajadas(registro), dataFont);
         }
@@ -412,6 +413,18 @@ public class ExportService {
         cell.setHorizontalAlignment(Element.ALIGN_CENTER);
         cell.setVerticalAlignment(Element.ALIGN_MIDDLE);
         cell.setPadding(3);
+        table.addCell(cell);
+    }
+
+    /**
+     * Agrega celda PDF con wrap de texto para contenido largo
+     */
+    private void addPdfCellWrap(PdfPTable table, String text, Font font) {
+        PdfPCell cell = new PdfPCell(new Phrase(text != null ? text : "-", font));
+        cell.setHorizontalAlignment(Element.ALIGN_LEFT);
+        cell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+        cell.setPadding(3);
+        cell.setNoWrap(false); // Permitir wrap del texto
         table.addCell(cell);
     }
 
