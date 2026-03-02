@@ -20,30 +20,46 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.apache.poi.xwpf.usermodel.ParagraphAlignment;
-import org.apache.poi.xwpf.usermodel.XWPFDocument;
-import org.apache.poi.xwpf.usermodel.XWPFParagraph;
-import org.apache.poi.xwpf.usermodel.XWPFRun;
-import org.apache.poi.xwpf.usermodel.XWPFTable;
-import org.apache.poi.xwpf.usermodel.XWPFTableCell;
-import org.apache.poi.xwpf.usermodel.XWPFTableRow;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.awt.Color;
 import java.io.ByteArrayOutputStream;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.TextStyle;
 import java.util.List;
 import java.util.Locale;
 
+/**
+ * Servicio para exportar registros a PDF y Excel.
+ * 
+ * ENCABEZADOS (10 columnas):
+ * Fecha | Identificación | Empleado | Hora Entrada | Ubicación Entrada |
+ * Hora Salida | Ubicación Salida | Reporte | Foto | Horas Trabajadas
+ */
 @Service
 public class ExportService {
 
+    private static final Logger logger = LoggerFactory.getLogger(ExportService.class);
+
     private final RegistroRepository registroRepository;
+    private static final ZoneId ZONA_COLOMBIA = ZoneId.of("America/Bogota");
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
     private static final Locale LOCALE_ES = new Locale("es", "ES");
+
+    // Fecha de corte: registros antes de esta fecha se guardaron en UTC
+    // A partir de esta fecha, los registros ya están en hora Colombia
+    private static final LocalDate FECHA_CORTE_TIMEZONE = LocalDate.of(2026, 3, 1);
+
+    // Encabezados de las columnas (10 columnas - sin latitud/longitud)
+    private static final String[] HEADERS = {
+            "Fecha", "Identificación", "Empleado", "Hora Entrada", "Ubicación Entrada",
+            "Hora Salida", "Ubicación Salida", "Reporte", "Foto", "Horas Trabajadas"
+    };
 
     public ExportService(RegistroRepository registroRepository) {
         this.registroRepository = registroRepository;
@@ -59,33 +75,92 @@ public class ExportService {
                 .toUpperCase();
     }
 
+    /**
+     * Calcula el primer día del mes
+     */
+    private LocalDate getPrimerDiaMes(int mes, int anio) {
+        return LocalDate.of(anio, mes, 1);
+    }
+
+    /**
+     * Calcula el último día del mes
+     */
+    private LocalDate getUltimoDiaMes(int mes, int anio) {
+        return LocalDate.of(anio, mes, 1).withDayOfMonth(
+                LocalDate.of(anio, mes, 1).lengthOfMonth());
+    }
+
     // ============================
     // 📊 EXPORTAR A EXCEL
     // ============================
 
     /**
      * Exporta registros de un mes a Excel (para ADMIN - todos los registros)
+     * Usa findAll() + filtrado en Java para máxima compatibilidad
      */
     public byte[] exportarExcelAdmin(int mes, int anio) throws Exception {
-        List<Registro> registros = registroRepository.findByMesYAnio(mes, anio);
-        return generarExcel(registros, mes, anio, true);
+        LocalDate fechaInicio = getPrimerDiaMes(mes, anio);
+        LocalDate fechaFin = getUltimoDiaMes(mes, anio);
+
+        logger.info("Exportando Excel - Mes: {}, Año: {}, Rango: {} a {}", mes, anio, fechaInicio, fechaFin);
+
+        // Obtener TODOS los registros y filtrar en Java (igual que
+        // /api/admin/registros)
+        List<Registro> todosRegistros = registroRepository.findAll();
+        logger.info("Total registros en BD: {}", todosRegistros.size());
+
+        List<Registro> registros = todosRegistros.stream()
+                .filter(r -> r.getFecha() != null)
+                .filter(r -> !r.getFecha().isBefore(fechaInicio) && !r.getFecha().isAfter(fechaFin))
+                .sorted((r1, r2) -> {
+                    int fechaCompare = r1.getFecha().compareTo(r2.getFecha());
+                    if (fechaCompare != 0)
+                        return fechaCompare;
+                    if (r1.getHoraEntrada() != null && r2.getHoraEntrada() != null) {
+                        return r1.getHoraEntrada().compareTo(r2.getHoraEntrada());
+                    }
+                    return 0;
+                })
+                .toList();
+
+        logger.info("Registros filtrados para mes {}/{}: {}", mes, anio, registros.size());
+
+        return generarExcel(registros, mes, anio);
     }
 
     /**
      * Exporta registros de un mes a Excel (para USER - solo sus registros)
      */
     public byte[] exportarExcelUsuario(Usuario usuario, int mes, int anio) throws Exception {
-        List<Registro> registros = registroRepository.findByUsuarioAndMesYAnio(usuario, mes, anio);
-        return generarExcel(registros, mes, anio, false);
+        LocalDate fechaInicio = getPrimerDiaMes(mes, anio);
+        LocalDate fechaFin = getUltimoDiaMes(mes, anio);
+
+        // Obtener registros del usuario y filtrar por fecha
+        List<Registro> todosRegistros = registroRepository.findAllByUsuario(usuario);
+        List<Registro> registros = todosRegistros.stream()
+                .filter(r -> r.getFecha() != null)
+                .filter(r -> !r.getFecha().isBefore(fechaInicio) && !r.getFecha().isAfter(fechaFin))
+                .sorted((r1, r2) -> {
+                    int fechaCompare = r1.getFecha().compareTo(r2.getFecha());
+                    if (fechaCompare != 0)
+                        return fechaCompare;
+                    if (r1.getHoraEntrada() != null && r2.getHoraEntrada() != null) {
+                        return r1.getHoraEntrada().compareTo(r2.getHoraEntrada());
+                    }
+                    return 0;
+                })
+                .toList();
+
+        return generarExcel(registros, mes, anio);
     }
 
-    private byte[] generarExcel(List<Registro> registros, int mes, int anio, boolean esAdmin) throws Exception {
+    private byte[] generarExcel(List<Registro> registros, int mes, int anio) throws Exception {
         try (Workbook workbook = new XSSFWorkbook();
                 ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 
             Sheet sheet = workbook.createSheet("Registros " + getNombreMes(mes) + " " + anio);
 
-            // Estilos
+            // Estilos para encabezado
             CellStyle headerStyle = workbook.createCellStyle();
             org.apache.poi.ss.usermodel.Font headerFont = workbook.createFont();
             headerFont.setBold(true);
@@ -99,6 +174,7 @@ public class ExportService {
             headerStyle.setBorderLeft(BorderStyle.THIN);
             headerStyle.setBorderRight(BorderStyle.THIN);
 
+            // Estilo para título
             CellStyle titleStyle = workbook.createCellStyle();
             org.apache.poi.ss.usermodel.Font titleFont = workbook.createFont();
             titleFont.setBold(true);
@@ -106,6 +182,7 @@ public class ExportService {
             titleStyle.setFont(titleFont);
             titleStyle.setAlignment(HorizontalAlignment.CENTER);
 
+            // Estilo para datos
             CellStyle dataStyle = workbook.createCellStyle();
             dataStyle.setBorderBottom(BorderStyle.THIN);
             dataStyle.setBorderTop(BorderStyle.THIN);
@@ -119,80 +196,51 @@ public class ExportService {
             org.apache.poi.ss.usermodel.Cell titleCell = titleRow.createCell(0);
             titleCell.setCellValue("REGISTROS DE ASISTENCIA - " + getNombreMes(mes) + " " + anio);
             titleCell.setCellStyle(titleStyle);
-            sheet.addMergedRegion(new CellRangeAddress(0, 0, 0, esAdmin ? 11 : 9));
+            sheet.addMergedRegion(new CellRangeAddress(0, 0, 0, HEADERS.length - 1));
 
             // Subtítulo con fecha de generación
             org.apache.poi.ss.usermodel.Row subtitleRow = sheet.createRow(1);
             org.apache.poi.ss.usermodel.Cell subtitleCell = subtitleRow.createCell(0);
-            subtitleCell.setCellValue("Generado el: " + LocalDate.now().format(DATE_FORMATTER));
-            sheet.addMergedRegion(new CellRangeAddress(1, 1, 0, esAdmin ? 11 : 9));
+            subtitleCell.setCellValue("Generado el: " + LocalDate.now(ZONA_COLOMBIA).format(DATE_FORMATTER));
+            sheet.addMergedRegion(new CellRangeAddress(1, 1, 0, HEADERS.length - 1));
 
             // Encabezados
             org.apache.poi.ss.usermodel.Row headerRow = sheet.createRow(3);
-            String[] headers;
-            if (esAdmin) {
-                headers = new String[] {
-                        "Fecha", "Empleado", "Identificación", "Cargo", "Teléfono",
-                        "Hora Entrada", "Hora Salida", "Horas Trabajadas",
-                        "Ubicación Entrada", "Ubicación Salida", "Reporte", "Imagen"
-                };
-            } else {
-                headers = new String[] {
-                        "Fecha", "Hora Entrada", "Hora Salida", "Horas Trabajadas",
-                        "Min. Trabajados", "Ubicación Entrada", "Ubicación Salida",
-                        "Reporte", "Estado", "Imagen"
-                };
-            }
-
-            for (int i = 0; i < headers.length; i++) {
+            for (int i = 0; i < HEADERS.length; i++) {
                 org.apache.poi.ss.usermodel.Cell cell = headerRow.createCell(i);
-                cell.setCellValue(headers[i]);
+                cell.setCellValue(HEADERS[i]);
                 cell.setCellStyle(headerStyle);
-                sheet.setColumnWidth(i, 4500);
+                sheet.setColumnWidth(i, 4000);
             }
 
             // Datos
             int rowNum = 4;
             for (Registro registro : registros) {
                 org.apache.poi.ss.usermodel.Row row = sheet.createRow(rowNum++);
-                int colNum = 0;
+                int col = 0;
 
-                if (esAdmin) {
-                    // Datos para ADMIN
-                    createExcelCell(row, colNum++, registro.getFecha().format(DATE_FORMATTER), dataStyle);
-                    createExcelCell(row, colNum++, registro.getUsuario().getNombre(), dataStyle);
-                    createExcelCell(row, colNum++, registro.getUsuario().getIdentificacion(), dataStyle);
-                    createExcelCell(row, colNum++, registro.getUsuario().getCargo(), dataStyle);
-                    createExcelCell(row, colNum++, registro.getUsuario().getTelefono(), dataStyle);
-                    createExcelCell(row, colNum++, formatTime(registro.getHoraEntrada()), dataStyle);
-                    createExcelCell(row, colNum++, formatTime(registro.getHoraSalida()), dataStyle);
-                    createExcelCell(row, colNum++, formatHorasTrabajadas(registro), dataStyle);
-                    createExcelCell(row, colNum++,
-                            formatUbicacion(registro.getLatitudCheckin(), registro.getLongitudCheckin()), dataStyle);
-                    createExcelCell(row, colNum++, formatUbicacion(registro.getLatitud(), registro.getLongitud()),
-                            dataStyle);
-                    createExcelCell(row, colNum++, registro.getReporte() != null ? registro.getReporte() : "",
-                            dataStyle);
-                    createExcelCell(row, colNum++, registro.getPicture() != null ? registro.getPicture() : "Sin imagen",
-                            dataStyle);
-                } else {
-                    // Datos para USER
-                    createExcelCell(row, colNum++, registro.getFecha().format(DATE_FORMATTER), dataStyle);
-                    createExcelCell(row, colNum++, formatTime(registro.getHoraEntrada()), dataStyle);
-                    createExcelCell(row, colNum++, formatTime(registro.getHoraSalida()), dataStyle);
-                    createExcelCell(row, colNum++, formatHoras(registro.getHorasTrabajadas()), dataStyle);
-                    createExcelCell(row, colNum++, formatMinutos(registro.getMinutosTrabajados()), dataStyle);
-                    createExcelCell(row, colNum++,
-                            formatUbicacion(registro.getLatitudCheckin(), registro.getLongitudCheckin()), dataStyle);
-                    createExcelCell(row, colNum++, formatUbicacion(registro.getLatitud(), registro.getLongitud()),
-                            dataStyle);
-                    createExcelCell(row, colNum++, registro.getReporte() != null ? registro.getReporte() : "",
-                            dataStyle);
-                    createExcelCell(row, colNum++, registro.getHoraSalida() == null ? "En curso" : "Finalizado",
-                            dataStyle);
-                    createExcelCell(row, colNum++, registro.getPicture() != null ? registro.getPicture() : "Sin imagen",
-                            dataStyle);
-                }
+                // Fecha
+                createExcelCell(row, col++, registro.getFecha().format(DATE_FORMATTER), dataStyle);
+                // Identificación
+                createExcelCell(row, col++, registro.getUsuario().getIdentificacion(), dataStyle);
+                // Empleado
+                createExcelCell(row, col++, registro.getUsuario().getNombre(), dataStyle);
+                // Hora Entrada (con ajuste de timezone según fecha)
+                createExcelCell(row, col++, formatTimeWithTimezone(registro.getHoraEntrada(), registro.getFecha()),
+                        dataStyle);
+                // Ubicación Entrada (dirección textual)
+                createExcelCell(row, col++, formatUbicacionEntrada(registro), dataStyle);
+                // Hora Salida (con ajuste de timezone según fecha)
+                createExcelCell(row, col++, formatTimeWithTimezone(registro.getHoraSalida(), registro.getFecha()),
+                        dataStyle);
+                // Ubicación Salida (dirección textual)
+                createExcelCell(row, col++, formatUbicacionSalida(registro), dataStyle);
+                // Reporte
+                createExcelCell(row, col++, registro.getReporte() != null ? registro.getReporte() : "", dataStyle);
+                // Foto
+                createExcelCell(row, col++, registro.getPicture() != null ? registro.getPicture() : "", dataStyle);
+                // Horas Trabajadas
+                createExcelCell(row, col++, formatHorasTrabajadas(registro), dataStyle);
             }
 
             // Resumen al final
@@ -219,22 +267,67 @@ public class ExportService {
 
     /**
      * Exporta registros de un mes a PDF (para ADMIN)
+     * Usa findAll() + filtrado en Java para máxima compatibilidad
      */
     public byte[] exportarPdfAdmin(int mes, int anio) throws Exception {
-        List<Registro> registros = registroRepository.findByMesYAnio(mes, anio);
-        return generarPdf(registros, mes, anio, true);
+        LocalDate fechaInicio = getPrimerDiaMes(mes, anio);
+        LocalDate fechaFin = getUltimoDiaMes(mes, anio);
+
+        logger.info("Exportando PDF - Mes: {}, Año: {}, Rango: {} a {}", mes, anio, fechaInicio, fechaFin);
+
+        // Obtener TODOS los registros y filtrar en Java (igual que
+        // /api/admin/registros)
+        List<Registro> todosRegistros = registroRepository.findAll();
+        logger.info("Total registros en BD: {}", todosRegistros.size());
+
+        List<Registro> registros = todosRegistros.stream()
+                .filter(r -> r.getFecha() != null)
+                .filter(r -> !r.getFecha().isBefore(fechaInicio) && !r.getFecha().isAfter(fechaFin))
+                .sorted((r1, r2) -> {
+                    int fechaCompare = r1.getFecha().compareTo(r2.getFecha());
+                    if (fechaCompare != 0)
+                        return fechaCompare;
+                    if (r1.getHoraEntrada() != null && r2.getHoraEntrada() != null) {
+                        return r1.getHoraEntrada().compareTo(r2.getHoraEntrada());
+                    }
+                    return 0;
+                })
+                .toList();
+
+        logger.info("Registros filtrados para mes {}/{}: {}", mes, anio, registros.size());
+
+        return generarPdf(registros, mes, anio);
     }
 
     /**
      * Exporta registros de un mes a PDF (para USER)
      */
     public byte[] exportarPdfUsuario(Usuario usuario, int mes, int anio) throws Exception {
-        List<Registro> registros = registroRepository.findByUsuarioAndMesYAnio(usuario, mes, anio);
-        return generarPdf(registros, mes, anio, false);
+        LocalDate fechaInicio = getPrimerDiaMes(mes, anio);
+        LocalDate fechaFin = getUltimoDiaMes(mes, anio);
+
+        // Obtener registros del usuario y filtrar por fecha
+        List<Registro> todosRegistros = registroRepository.findAllByUsuario(usuario);
+        List<Registro> registros = todosRegistros.stream()
+                .filter(r -> r.getFecha() != null)
+                .filter(r -> !r.getFecha().isBefore(fechaInicio) && !r.getFecha().isAfter(fechaFin))
+                .sorted((r1, r2) -> {
+                    int fechaCompare = r1.getFecha().compareTo(r2.getFecha());
+                    if (fechaCompare != 0)
+                        return fechaCompare;
+                    if (r1.getHoraEntrada() != null && r2.getHoraEntrada() != null) {
+                        return r1.getHoraEntrada().compareTo(r2.getHoraEntrada());
+                    }
+                    return 0;
+                })
+                .toList();
+
+        return generarPdf(registros, mes, anio);
     }
 
-    private byte[] generarPdf(List<Registro> registros, int mes, int anio, boolean esAdmin) throws Exception {
+    private byte[] generarPdf(List<Registro> registros, int mes, int anio) throws Exception {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
+        // Usar landscape para que quepan todas las columnas
         com.lowagie.text.Document document = new com.lowagie.text.Document(PageSize.A4.rotate());
         PdfWriter.getInstance(document, out);
         document.open();
@@ -242,8 +335,8 @@ public class ExportService {
         // Fuentes
         Font titleFont = new Font(Font.HELVETICA, 18, Font.BOLD, Color.DARK_GRAY);
         Font subtitleFont = new Font(Font.HELVETICA, 12, Font.NORMAL, Color.GRAY);
-        Font headerFont = new Font(Font.HELVETICA, 10, Font.BOLD, Color.WHITE);
-        Font dataFont = new Font(Font.HELVETICA, 8, Font.NORMAL, Color.BLACK);
+        Font headerFont = new Font(Font.HELVETICA, 7, Font.BOLD, Color.WHITE);
+        Font dataFont = new Font(Font.HELVETICA, 6, Font.NORMAL, Color.BLACK);
 
         // Título
         Paragraph title = new Paragraph("REGISTROS DE ASISTENCIA", titleFont);
@@ -255,64 +348,53 @@ public class ExportService {
         subtitle.setSpacingAfter(10);
         document.add(subtitle);
 
-        Paragraph fecha = new Paragraph("Generado el: " + LocalDate.now().format(DATE_FORMATTER), subtitleFont);
+        Paragraph fecha = new Paragraph("Generado el: " + LocalDate.now(ZONA_COLOMBIA).format(DATE_FORMATTER),
+                subtitleFont);
         fecha.setAlignment(Element.ALIGN_CENTER);
         fecha.setSpacingAfter(20);
         document.add(fecha);
 
-        // Tabla
-        int numColumnas = esAdmin ? 10 : 8;
-        PdfPTable table = new PdfPTable(numColumnas);
+        // Tabla con 10 columnas
+        PdfPTable table = new PdfPTable(HEADERS.length);
         table.setWidthPercentage(100);
 
-        // Encabezados
-        String[] headers;
-        if (esAdmin) {
-            headers = new String[] {
-                    "Fecha", "Empleado", "Identificación", "Cargo",
-                    "H. Entrada", "H. Salida", "Horas Trab.",
-                    "Ubic. Entrada", "Ubic. Salida", "Reporte"
-            };
-        } else {
-            headers = new String[] {
-                    "Fecha", "H. Entrada", "H. Salida", "Horas Trab.",
-                    "Min. Trab.", "Ubic. Entrada", "Ubic. Salida", "Estado"
-            };
-        }
+        // Anchos relativos de las columnas (10 columnas)
+        // Ajustados para mostrar Reporte completo y URL de Foto
+        float[] columnWidths = { 7, 8, 10, 6, 14, 6, 14, 12, 16, 7 };
+        table.setWidths(columnWidths);
 
-        for (String header : headers) {
+        // Encabezados
+        for (String header : HEADERS) {
             PdfPCell cell = new PdfPCell(new Phrase(header, headerFont));
             cell.setBackgroundColor(new Color(0, 51, 102));
             cell.setHorizontalAlignment(Element.ALIGN_CENTER);
-            cell.setPadding(5);
+            cell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+            cell.setPadding(4);
             table.addCell(cell);
         }
 
         // Datos
         for (Registro registro : registros) {
-            if (esAdmin) {
-                addPdfCell(table, registro.getFecha().format(DATE_FORMATTER), dataFont);
-                addPdfCell(table, registro.getUsuario().getNombre(), dataFont);
-                addPdfCell(table, registro.getUsuario().getIdentificacion(), dataFont);
-                addPdfCell(table, registro.getUsuario().getCargo(), dataFont);
-                addPdfCell(table, formatTime(registro.getHoraEntrada()), dataFont);
-                addPdfCell(table, formatTime(registro.getHoraSalida()), dataFont);
-                addPdfCell(table, formatHorasTrabajadas(registro), dataFont);
-                addPdfCell(table, formatUbicacionCorta(registro.getLatitudCheckin(), registro.getLongitudCheckin()),
-                        dataFont);
-                addPdfCell(table, formatUbicacionCorta(registro.getLatitud(), registro.getLongitud()), dataFont);
-                addPdfCell(table, truncate(registro.getReporte(), 30), dataFont);
-            } else {
-                addPdfCell(table, registro.getFecha().format(DATE_FORMATTER), dataFont);
-                addPdfCell(table, formatTime(registro.getHoraEntrada()), dataFont);
-                addPdfCell(table, formatTime(registro.getHoraSalida()), dataFont);
-                addPdfCell(table, formatHoras(registro.getHorasTrabajadas()), dataFont);
-                addPdfCell(table, formatMinutos(registro.getMinutosTrabajados()), dataFont);
-                addPdfCell(table, formatUbicacionCorta(registro.getLatitudCheckin(), registro.getLongitudCheckin()),
-                        dataFont);
-                addPdfCell(table, formatUbicacionCorta(registro.getLatitud(), registro.getLongitud()), dataFont);
-                addPdfCell(table, registro.getHoraSalida() == null ? "En curso" : "Finalizado", dataFont);
-            }
+            // Fecha
+            addPdfCell(table, registro.getFecha().format(DATE_FORMATTER), dataFont);
+            // Identificación
+            addPdfCell(table, registro.getUsuario().getIdentificacion(), dataFont);
+            // Empleado
+            addPdfCell(table, registro.getUsuario().getNombre(), dataFont);
+            // Hora Entrada (con ajuste de timezone según fecha)
+            addPdfCell(table, formatTimeWithTimezone(registro.getHoraEntrada(), registro.getFecha()), dataFont);
+            // Ubicación Entrada (dirección textual)
+            addPdfCellWrap(table, formatUbicacionEntrada(registro), dataFont);
+            // Hora Salida (con ajuste de timezone según fecha)
+            addPdfCell(table, formatTimeWithTimezone(registro.getHoraSalida(), registro.getFecha()), dataFont);
+            // Ubicación Salida (dirección textual)
+            addPdfCellWrap(table, formatUbicacionSalida(registro), dataFont);
+            // Reporte (texto completo con wrap)
+            addPdfCellWrap(table, registro.getReporte() != null ? registro.getReporte() : "-", dataFont);
+            // Foto (URL completa)
+            addPdfCellWrap(table, registro.getPicture() != null ? registro.getPicture() : "-", dataFont);
+            // Horas Trabajadas
+            addPdfCell(table, formatHorasTrabajadas(registro), dataFont);
         }
 
         document.add(table);
@@ -329,137 +411,46 @@ public class ExportService {
     private void addPdfCell(PdfPTable table, String text, Font font) {
         PdfPCell cell = new PdfPCell(new Phrase(text != null ? text : "", font));
         cell.setHorizontalAlignment(Element.ALIGN_CENTER);
-        cell.setPadding(4);
+        cell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+        cell.setPadding(3);
         table.addCell(cell);
     }
 
-    // ============================
-    // 📝 EXPORTAR A WORD
-    // ============================
-
     /**
-     * Exporta registros de un mes a Word (para ADMIN)
+     * Agrega celda PDF con wrap de texto para contenido largo
      */
-    public byte[] exportarWordAdmin(int mes, int anio) throws Exception {
-        List<Registro> registros = registroRepository.findByMesYAnio(mes, anio);
-        return generarWord(registros, mes, anio, true);
-    }
-
-    /**
-     * Exporta registros de un mes a Word (para USER)
-     */
-    public byte[] exportarWordUsuario(Usuario usuario, int mes, int anio) throws Exception {
-        List<Registro> registros = registroRepository.findByUsuarioAndMesYAnio(usuario, mes, anio);
-        return generarWord(registros, mes, anio, false);
-    }
-
-    private byte[] generarWord(List<Registro> registros, int mes, int anio, boolean esAdmin) throws Exception {
-        try (XWPFDocument document = new XWPFDocument();
-                ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-
-            // Título
-            XWPFParagraph titleParagraph = document.createParagraph();
-            titleParagraph.setAlignment(ParagraphAlignment.CENTER);
-            XWPFRun titleRun = titleParagraph.createRun();
-            titleRun.setText("REGISTROS DE ASISTENCIA");
-            titleRun.setBold(true);
-            titleRun.setFontSize(20);
-            titleRun.addBreak();
-
-            XWPFRun subtitleRun = titleParagraph.createRun();
-            subtitleRun.setText(getNombreMes(mes) + " " + anio);
-            subtitleRun.setFontSize(14);
-            subtitleRun.addBreak();
-
-            XWPFRun dateRun = titleParagraph.createRun();
-            dateRun.setText("Generado el: " + LocalDate.now().format(DATE_FORMATTER));
-            dateRun.setFontSize(10);
-            dateRun.setItalic(true);
-            dateRun.addBreak();
-            dateRun.addBreak();
-
-            // Tabla
-            String[] headers;
-            if (esAdmin) {
-                headers = new String[] {
-                        "Fecha", "Empleado", "Identificación", "Cargo",
-                        "H. Entrada", "H. Salida", "Horas Trab.", "Reporte"
-                };
-            } else {
-                headers = new String[] {
-                        "Fecha", "H. Entrada", "H. Salida", "Horas",
-                        "Minutos", "Reporte", "Estado"
-                };
-            }
-
-            int numCols = headers.length;
-            XWPFTable table = document.createTable(registros.size() + 1, numCols);
-            table.setWidth("100%");
-
-            // Encabezados
-            XWPFTableRow headerRow = table.getRow(0);
-            for (int i = 0; i < headers.length; i++) {
-                XWPFTableCell cell = headerRow.getCell(i);
-                cell.setColor("003366");
-                XWPFParagraph p = cell.getParagraphs().get(0);
-                p.setAlignment(ParagraphAlignment.CENTER);
-                XWPFRun run = p.createRun();
-                run.setText(headers[i]);
-                run.setBold(true);
-                run.setColor("FFFFFF");
-                run.setFontSize(9);
-            }
-
-            // Datos
-            for (int i = 0; i < registros.size(); i++) {
-                Registro registro = registros.get(i);
-                XWPFTableRow row = table.getRow(i + 1);
-
-                if (esAdmin) {
-                    setWordCell(row, 0, registro.getFecha().format(DATE_FORMATTER));
-                    setWordCell(row, 1, registro.getUsuario().getNombre());
-                    setWordCell(row, 2, registro.getUsuario().getIdentificacion());
-                    setWordCell(row, 3, registro.getUsuario().getCargo());
-                    setWordCell(row, 4, formatTime(registro.getHoraEntrada()));
-                    setWordCell(row, 5, formatTime(registro.getHoraSalida()));
-                    setWordCell(row, 6, formatHorasTrabajadas(registro));
-                    setWordCell(row, 7, truncate(registro.getReporte(), 50));
-                } else {
-                    setWordCell(row, 0, registro.getFecha().format(DATE_FORMATTER));
-                    setWordCell(row, 1, formatTime(registro.getHoraEntrada()));
-                    setWordCell(row, 2, formatTime(registro.getHoraSalida()));
-                    setWordCell(row, 3, formatHoras(registro.getHorasTrabajadas()));
-                    setWordCell(row, 4, formatMinutos(registro.getMinutosTrabajados()));
-                    setWordCell(row, 5, truncate(registro.getReporte(), 50));
-                    setWordCell(row, 6, registro.getHoraSalida() == null ? "En curso" : "Finalizado");
-                }
-            }
-
-            // Resumen
-            XWPFParagraph resumenParagraph = document.createParagraph();
-            resumenParagraph.setSpacingBefore(400);
-            XWPFRun resumenRun = resumenParagraph.createRun();
-            resumenRun.addBreak();
-            resumenRun.setText("Total de registros: " + registros.size());
-            resumenRun.setBold(true);
-
-            document.write(out);
-            return out.toByteArray();
-        }
-    }
-
-    private void setWordCell(XWPFTableRow row, int col, String value) {
-        XWPFTableCell cell = row.getCell(col);
-        XWPFParagraph p = cell.getParagraphs().get(0);
-        p.setAlignment(ParagraphAlignment.CENTER);
-        XWPFRun run = p.createRun();
-        run.setText(value != null ? value : "");
-        run.setFontSize(8);
+    private void addPdfCellWrap(PdfPTable table, String text, Font font) {
+        PdfPCell cell = new PdfPCell(new Phrase(text != null ? text : "-", font));
+        cell.setHorizontalAlignment(Element.ALIGN_LEFT);
+        cell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+        cell.setPadding(3);
+        cell.setNoWrap(false); // Permitir wrap del texto
+        table.addCell(cell);
     }
 
     // ============================
     // 🔧 UTILIDADES
     // ============================
+
+    /**
+     * Convierte hora según la fecha del registro.
+     * - Registros antiguos (antes del 1 marzo 2026): estaban en UTC, restamos 5
+     * horas
+     * - Registros nuevos (desde 1 marzo 2026): ya están en hora Colombia
+     */
+    private String formatTimeWithTimezone(java.time.LocalTime time, LocalDate fechaRegistro) {
+        if (time == null)
+            return "-";
+
+        // Si el registro es anterior a la fecha de corte, convertir de UTC a Colombia
+        if (fechaRegistro != null && fechaRegistro.isBefore(FECHA_CORTE_TIMEZONE)) {
+            java.time.LocalTime horaColombina = time.minusHours(5);
+            return horaColombina.format(TIME_FORMATTER);
+        }
+
+        // Registros nuevos ya están en hora Colombia
+        return time.format(TIME_FORMATTER);
+    }
 
     private String formatTime(java.time.LocalTime time) {
         if (time == null)
@@ -467,39 +458,40 @@ public class ExportService {
         return time.format(TIME_FORMATTER);
     }
 
+    private String formatUbicacionEntrada(Registro registro) {
+        // Usar el campo de dirección textual
+        if (registro.getUbicacionEntrada() != null && !registro.getUbicacionEntrada().trim().isEmpty()) {
+            return registro.getUbicacionEntrada();
+        }
+        // Fallback: si no hay dirección pero hay coordenadas, mostrar coordenadas
+        if (registro.getLatitudCheckin() != null && registro.getLongitudCheckin() != null) {
+            return String.format("%.4f, %.4f", registro.getLatitudCheckin(), registro.getLongitudCheckin());
+        }
+        return "-";
+    }
+
+    private String formatUbicacionSalida(Registro registro) {
+        // Usar el campo de dirección textual
+        if (registro.getUbicacionSalida() != null && !registro.getUbicacionSalida().trim().isEmpty()) {
+            return registro.getUbicacionSalida();
+        }
+        // Fallback: si no hay dirección pero hay coordenadas, mostrar coordenadas
+        if (registro.getLatitud() != null && registro.getLongitud() != null) {
+            return String.format("%.4f, %.4f", registro.getLatitud(), registro.getLongitud());
+        }
+        return "-";
+    }
+
     private String formatHorasTrabajadas(Registro registro) {
-        if (registro.getHorasTrabajadas() == null && registro.getMinutosTrabajados() == null) {
+        if (registro.getMinutosTrabajados() == null) {
             if (registro.getHoraSalida() == null)
                 return "En curso";
             return "-";
         }
-        int horas = registro.getHorasTrabajadas() != null ? registro.getHorasTrabajadas() : 0;
-        int minutos = registro.getMinutosTrabajados() != null ? registro.getMinutosTrabajados() % 60 : 0;
+        int totalMinutos = registro.getMinutosTrabajados();
+        int horas = totalMinutos / 60;
+        int minutos = totalMinutos % 60;
         return horas + "h " + minutos + "m";
-    }
-
-    private String formatHoras(Integer horas) {
-        if (horas == null)
-            return "-";
-        return horas + "h";
-    }
-
-    private String formatMinutos(Integer minutos) {
-        if (minutos == null)
-            return "-";
-        return minutos + " min";
-    }
-
-    private String formatUbicacion(Double lat, Double lng) {
-        if (lat == null || lng == null)
-            return "Sin ubicación";
-        return String.format("%.6f, %.6f", lat, lng);
-    }
-
-    private String formatUbicacionCorta(Double lat, Double lng) {
-        if (lat == null || lng == null)
-            return "-";
-        return String.format("%.4f, %.4f", lat, lng);
     }
 
     private String truncate(String text, int maxLength) {

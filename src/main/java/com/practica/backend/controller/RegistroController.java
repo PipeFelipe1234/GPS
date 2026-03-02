@@ -16,11 +16,14 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 
 @RestController
 @RequestMapping("/api/registros")
 @CrossOrigin(origins = "*")
 public class RegistroController {
+
+        private static final ZoneId ZONA_COLOMBIA = ZoneId.of("America/Bogota");
 
         private final RegistroService registroService;
         private final UsuarioService usuarioService;
@@ -105,8 +108,9 @@ public class RegistroController {
                                         .getAuthentication().getName();
                         Usuario usuario = usuarioService.obtenerPorIdentificacion(identificacion);
 
-                        int mes = request.mes() != null ? request.mes() : LocalDate.now().getMonthValue();
-                        int anio = request.anio() != null ? request.anio() : LocalDate.now().getYear();
+                        LocalDate fechaActual = LocalDate.now(ZONA_COLOMBIA);
+                        int mes = request.mes() != null ? request.mes() : fechaActual.getMonthValue();
+                        int anio = request.anio() != null ? request.anio() : fechaActual.getYear();
 
                         byte[] pdfBytes = exportService.exportarPdfUsuario(usuario, mes, anio);
 
@@ -133,8 +137,9 @@ public class RegistroController {
                                         .getAuthentication().getName();
                         Usuario usuario = usuarioService.obtenerPorIdentificacion(identificacion);
 
-                        int mes = request.mes() != null ? request.mes() : LocalDate.now().getMonthValue();
-                        int anio = request.anio() != null ? request.anio() : LocalDate.now().getYear();
+                        LocalDate fechaActual = LocalDate.now(ZONA_COLOMBIA);
+                        int mes = request.mes() != null ? request.mes() : fechaActual.getMonthValue();
+                        int anio = request.anio() != null ? request.anio() : fechaActual.getYear();
 
                         byte[] excelBytes = exportService.exportarExcelUsuario(usuario, mes, anio);
 
@@ -149,35 +154,6 @@ public class RegistroController {
                                         .body(excelBytes);
                 } catch (Exception e) {
                         throw new RuntimeException("Error al generar Excel: " + e.getMessage());
-                }
-        }
-
-        /**
-         * Exporta los registros del usuario a Word
-         */
-        @PostMapping("/exportar/word")
-        public ResponseEntity<byte[]> exportarWord(@RequestBody ExportRequest request) {
-                try {
-                        String identificacion = SecurityContextHolder.getContext()
-                                        .getAuthentication().getName();
-                        Usuario usuario = usuarioService.obtenerPorIdentificacion(identificacion);
-
-                        int mes = request.mes() != null ? request.mes() : LocalDate.now().getMonthValue();
-                        int anio = request.anio() != null ? request.anio() : LocalDate.now().getYear();
-
-                        byte[] wordBytes = exportService.exportarWordUsuario(usuario, mes, anio);
-
-                        String nombreMes = exportService.getNombreMes(mes);
-                        String filename = "Registros_" + nombreMes + "_" + anio + ".docx";
-
-                        return ResponseEntity.ok()
-                                        .header(HttpHeaders.CONTENT_DISPOSITION,
-                                                        "attachment; filename=\"" + filename + "\"")
-                                        .contentType(MediaType.parseMediaType(
-                                                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"))
-                                        .body(wordBytes);
-                } catch (Exception e) {
-                        throw new RuntimeException("Error al generar Word: " + e.getMessage());
                 }
         }
 }

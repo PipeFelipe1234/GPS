@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.Duration;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
@@ -24,8 +25,10 @@ public class RegistroService {
     private final RegistroRepository registroRepository;
     private final NotificacionService notificacionService;
     private static final DateTimeFormatter ISO_FORMATTER = DateTimeFormatter.ISO_DATE_TIME;
+    private static final ZoneId ZONA_COLOMBIA = ZoneId.of("America/Bogota");
 
-    public RegistroService(RegistroRepository registroRepository, NotificacionService notificacionService) {
+    public RegistroService(RegistroRepository registroRepository,
+            NotificacionService notificacionService) {
         this.registroRepository = registroRepository;
         this.notificacionService = notificacionService;
     }
@@ -47,8 +50,8 @@ public class RegistroService {
 
     public RegistroResponse marcarEntrada(Usuario usuario, MarcarEntradaRequest request) {
 
-        LocalDate hoy = LocalDate.now();
-        LocalTime horaActual = LocalTime.now();
+        LocalDate hoy = LocalDate.now(ZONA_COLOMBIA);
+        LocalTime horaActual = LocalTime.now(ZONA_COLOMBIA);
 
         // Validar precisión GPS
         if (request.precisionMetrosCheckin() != null && request.precisionMetrosCheckin() > 50) {
@@ -70,6 +73,7 @@ public class RegistroService {
         registro.setLatitudCheckin(request.latitudCheckin());
         registro.setLongitudCheckin(request.longitudCheckin());
         registro.setPrecisionMetrosCheckin(request.precisionMetrosCheckin());
+        registro.setUbicacionEntrada(request.ubicacionEntrada());
 
         Registro guardado = registroRepository.save(registro);
 
@@ -83,8 +87,8 @@ public class RegistroService {
             Usuario usuario,
             MarcarSalidaRequest request) {
 
-        LocalDate fechaSalida = LocalDate.now();
-        LocalTime horaSalida = LocalTime.now();
+        LocalDate fechaSalida = LocalDate.now(ZONA_COLOMBIA);
+        LocalTime horaSalida = LocalTime.now(ZONA_COLOMBIA);
 
         // Si viene fechaCreacion, usarla para obtener la fecha correcta
         LocalDateTime fechaHoraRegistro = parseISODateTime(request.fechaCreacion());
@@ -110,6 +114,7 @@ public class RegistroService {
         registro.setPrecisionMetros(request.precisionMetros());
         registro.setReporte(request.reporte());
         registro.setPicture(request.picture());
+        registro.setUbicacionSalida(request.ubicacionSalida());
 
         // ⏱️ Calcular horas trabajadas considerando que pueden ser días diferentes
         LocalDateTime fechaHoraEntrada = LocalDateTime.of(registro.getFecha(), registro.getHoraEntrada());
@@ -192,6 +197,8 @@ public class RegistroService {
                 r.getPrecisionMetrosCheckin(),
                 r.getReporte(),
                 r.getPicture(),
+                r.getUbicacionEntrada(),
+                r.getUbicacionSalida(),
                 r.getUsuario().getIdentificacion(),
                 r.getUsuario().getNombre(),
                 r.getUsuario().getFoto(),

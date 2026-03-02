@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.format.TextStyle;
 import java.time.temporal.ChronoUnit;
 import java.util.Locale;
@@ -26,9 +27,25 @@ public class ScheduledCleanupService {
     private final RegistroRepository registroRepository;
     private final NotificacionService notificacionService;
     private static final Locale LOCALE_ES = new Locale("es", "ES");
+    private static final ZoneId ZONA_COLOMBIA = ZoneId.of("America/Bogota");
 
     // Días hábiles de advertencia antes de la eliminación
-    private static final int DIAS_HABILES_ADVERTENCIA = 4;
+    private static final int DIAS_HABILES_ADVERTENCIA = 5;
+
+    /**
+     * Calcula el primer día del mes
+     */
+    private LocalDate getPrimerDiaMes(int mes, int anio) {
+        return LocalDate.of(anio, mes, 1);
+    }
+
+    /**
+     * Calcula el último día del mes
+     */
+    private LocalDate getUltimoDiaMes(int mes, int anio) {
+        return LocalDate.of(anio, mes, 1).withDayOfMonth(
+                LocalDate.of(anio, mes, 1).lengthOfMonth());
+    }
 
     public ScheduledCleanupService(
             RegistroRepository registroRepository,
@@ -43,21 +60,25 @@ public class ScheduledCleanupService {
      */
     @Scheduled(cron = "0 5 0 * * *") // Todos los días a las 00:05
     public void ejecutarLimpiezaAutomatica() {
-        LocalDate hoy = LocalDate.now();
+        LocalDate hoy = LocalDate.now(ZONA_COLOMBIA);
 
         // Calcular el mes que debe ser eliminado (2 meses atrás)
         LocalDate mesAEliminar = hoy.minusMonths(2);
         int mes = mesAEliminar.getMonthValue();
         int anio = mesAEliminar.getYear();
 
+        // Calcular rango de fechas del mes
+        LocalDate fechaInicio = getPrimerDiaMes(mes, anio);
+        LocalDate fechaFin = getUltimoDiaMes(mes, anio);
+
         // Verificar si hay registros de ese mes
-        long cantidadRegistros = registroRepository.countByMesYAnio(mes, anio);
+        long cantidadRegistros = registroRepository.countByMesYAnioRange(fechaInicio, fechaFin);
 
         if (cantidadRegistros > 0) {
             // Calcular si estamos en el primer día del mes actual (día de eliminación)
             if (hoy.getDayOfMonth() == 1) {
                 // Ejecutar eliminación
-                int eliminados = registroRepository.deleteByMesYAnio(mes, anio);
+                int eliminados = registroRepository.deleteByMesYAnioRange(fechaInicio, fechaFin);
 
                 String nombreMes = getNombreMes(mes);
 
@@ -89,7 +110,7 @@ public class ScheduledCleanupService {
      * Obtiene información sobre la próxima limpieza automática
      */
     public CleanupInfoResponse obtenerInfoLimpieza() {
-        LocalDate hoy = LocalDate.now();
+        LocalDate hoy = LocalDate.now(ZONA_COLOMBIA);
 
         // El primer día del próximo mes es cuando se ejecuta la eliminación
         LocalDate fechaEliminacion = hoy.withDayOfMonth(1).plusMonths(1);
@@ -99,8 +120,12 @@ public class ScheduledCleanupService {
         int mes = mesAEliminar.getMonthValue();
         int anio = mesAEliminar.getYear();
 
+        // Calcular rango de fechas del mes
+        LocalDate fechaInicioMes = getPrimerDiaMes(mes, anio);
+        LocalDate fechaFinMes = getUltimoDiaMes(mes, anio);
+
         // Contar registros que serán eliminados
-        long cantidadRegistros = registroRepository.countByMesYAnio(mes, anio);
+        long cantidadRegistros = registroRepository.countByMesYAnioRange(fechaInicioMes, fechaFinMes);
 
         // Si no hay registros del mes antiguo, no hay advertencia
         if (cantidadRegistros == 0) {
@@ -154,13 +179,15 @@ public class ScheduledCleanupService {
             return meses;
         }
 
-        LocalDate hoy = LocalDate.now();
+        LocalDate hoy = LocalDate.now(ZONA_COLOMBIA);
         LocalDate fecha = fechaMasAntigua.withDayOfMonth(1);
 
         while (!fecha.isAfter(hoy)) {
             int mes = fecha.getMonthValue();
             int anio = fecha.getYear();
-            long cantidad = registroRepository.countByMesYAnio(mes, anio);
+            LocalDate inicioMes = getPrimerDiaMes(mes, anio);
+            LocalDate finMes = getUltimoDiaMes(mes, anio);
+            long cantidad = registroRepository.countByMesYAnioRange(inicioMes, finMes);
 
             if (cantidad > 0) {
                 java.util.Map<String, Object> mesInfo = new java.util.HashMap<>();
@@ -221,6 +248,8 @@ public class ScheduledCleanupService {
      * Útil para pruebas o eliminación manual
      */
     public int forzarEliminacionMes(int mes, int anio) {
-        return registroRepository.deleteByMesYAnio(mes, anio);
+        LocalDate fechaInicio = getPrimerDiaMes(mes, anio);
+        LocalDate fechaFin = getUltimoDiaMes(mes, anio);
+        return registroRepository.deleteByMesYAnioRange(fechaInicio, fechaFin);
     }
 }
