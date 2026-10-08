@@ -6,8 +6,11 @@ import com.practica.backend.dto.RegistroFilterRequest;
 import com.practica.backend.dto.RegistroResponse;
 import com.practica.backend.entity.Registro;
 import com.practica.backend.entity.Usuario;
+import com.practica.backend.exception.RegistroException;
 import com.practica.backend.repository.RegistroRepository;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -26,6 +29,7 @@ public class RegistroService {
     private final NotificacionService notificacionService;
     private static final DateTimeFormatter ISO_FORMATTER = DateTimeFormatter.ISO_DATE_TIME;
     private static final ZoneId ZONA_COLOMBIA = ZoneId.of("America/Bogota");
+    private static final LocalTime HORA_CIERRE_AUTOMATICO = LocalTime.of(23, 55);
 
     public RegistroService(RegistroRepository registroRepository,
             NotificacionService notificacionService) {
@@ -48,6 +52,7 @@ public class RegistroService {
         }
     }
 
+    @Transactional
     public RegistroResponse marcarEntrada(Usuario usuario, MarcarEntradaRequest request) {
 
         LocalDate hoy = LocalDate.now(ZONA_COLOMBIA);
@@ -55,7 +60,7 @@ public class RegistroService {
 
         // Validar precisión GPS
         if (request.precisionMetrosCheckin() != null && request.precisionMetrosCheckin() > 50) {
-            throw new RuntimeException("Precisión GPS insuficiente en entrada");
+            throw new RegistroException(HttpStatus.UNPROCESSABLE_ENTITY, "Precisión GPS insuficiente en entrada");
         }
 
         // Si viene fechaCreacion, usarla; sino, usar la hora actual
@@ -64,6 +69,17 @@ public class RegistroService {
         if (fechaHoraRegistro != null) {
             hoy = fechaHoraRegistro.toLocalDate();
             horaActual = fechaHoraRegistro.toLocalTime();
+        }
+
+        Registro abierto = registroRepository.findUltimoRegistroSinSalida(usuario).orElse(null);
+
+        if (abierto != null) {
+            if (!abierto.getFecha().isBefore(hoy)) {
+                throw new RegistroException(HttpStatus.CONFLICT,
+                        "Ya tienes un turno abierto. Marca la salida antes de registrar una nueva entrada");
+            }
+            // Turno olvidado de un día anterior: se cierra para permitir la nueva entrada
+            cerrarAutomaticamente(abierto);
         }
 
         Registro registro = new Registro();
@@ -83,6 +99,7 @@ public class RegistroService {
         return mapToResponse(guardado);
     }
 
+    @Transactional
     public RegistroResponse marcarSalida(
             Usuario usuario,
             MarcarSalidaRequest request) {
@@ -101,11 +118,17 @@ public class RegistroService {
         // 🔄 Buscar cualquier registro sin salida (sin importar la fecha de entrada)
         Registro registro = registroRepository
                 .findUltimoRegistroSinSalida(usuario)
-                .orElseThrow(() -> new RuntimeException("No hay entrada sin salida registrada"));
+                .orElseThrow(() -> new RegistroException(HttpStatus.CONFLICT,
+                        "No tienes un turno abierto para marcar salida"));
 
         // Validar precisión GPS
         if (request.precisionMetros() != null && request.precisionMetros() > 50) {
-            throw new RuntimeException("Precisión GPS insuficiente en salida");
+            throw new RegistroException(HttpStatus.UNPROCESSABLE_ENTITY, "Precisión GPS insuficiente en salida");
+        }
+
+        LocalDateTime entradaRegistro = LocalDateTime.of(registro.getFecha(), registro.getHoraEntrada());
+        if (LocalDateTime.of(fechaSalida, horaSalida).isBefore(entradaRegistro)) {
+            throw new RegistroException(HttpStatus.CONFLICT, "La salida no puede ser anterior a la entrada");
         }
 
         registro.setHoraSalida(horaSalida);
@@ -133,10 +156,34 @@ public class RegistroService {
     }
 
     public List<RegistroResponse> obtenerMisRegistros(Usuario usuario) {
-        return registroRepository.findAllByUsuario(usuario)
+        return registroRepository.findAllByUsuarioOrderByFechaAscHoraEntradaAsc(usuario)
                 .stream()
                 .map(this::mapToResponse)
                 .toList();
+    }
+
+    /**
+     * Cierra los turnos abiertos con fecha hasta {@code hasta} (inclusive) marcando
+     * salida a las 23:55 de su día. Retorna la cantidad de turnos cerrados.
+     */
+    @Transactional
+    public int cerrarTurnosOlvidados(LocalDate hasta) {
+        List<Registro> abiertos = registroRepository.findAllByHoraSalidaIsNullAndFechaLessThanEqual(hasta);
+        abiertos.forEach(this::cerrarAutomaticamente);
+        return abiertos.size();
+    }
+
+    private void cerrarAutomaticamente(Registro registro) {
+        // Si la entrada fue después de las 23:55 la salida no puede quedar antes de ella
+        LocalTime salida = registro.getHoraEntrada().isAfter(HORA_CIERRE_AUTOMATICO)
+                ? registro.getHoraEntrada()
+                : HORA_CIERRE_AUTOMATICO;
+        Duration duracion = Duration.between(registro.getHoraEntrada(), salida);
+
+        registro.setHoraSalida(salida);
+        registro.setHorasTrabajadas((int) duracion.toHours());
+        registro.setMinutosTrabajados((int) duracion.toMinutes());
+        registroRepository.save(registro);
     }
 
     public List<RegistroResponse> obtenerTodos() {
@@ -165,7 +212,9 @@ public class RegistroService {
 
         if (enCurso) {
             // 🟢 Turno en curso - calcular horas y minutos en tiempo real
-            Duration duracion = Duration.between(r.getHoraEntrada(), LocalTime.now());
+            Duration duracion = Duration.between(
+                    LocalDateTime.of(r.getFecha(), r.getHoraEntrada()),
+                    LocalDateTime.now(ZONA_COLOMBIA));
             horasTrabajadas = (int) duracion.toHours();
             minutosTrabajados = (int) duracion.toMinutes();
         } else {

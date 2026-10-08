@@ -19,10 +19,14 @@ public interface RegistroRepository extends JpaRepository<Registro, Long> {
         Optional<Registro> findByUsuarioAndFechaAndHoraSalidaIsNull(Usuario usuario, LocalDate fecha);
 
         // 🔍 Buscar el último registro sin salida (sin importar la fecha)
-        @Query("SELECT r FROM Registro r WHERE r.usuario = :usuario AND r.horaSalida IS NULL ORDER BY r.fecha DESC, r.horaEntrada DESC")
+        @Query("SELECT r FROM Registro r WHERE r.usuario = :usuario AND r.horaSalida IS NULL ORDER BY r.fecha DESC, r.horaEntrada DESC LIMIT 1")
         Optional<Registro> findUltimoRegistroSinSalida(@Param("usuario") Usuario usuario);
 
         List<Registro> findAllByUsuario(Usuario usuario);
+
+        List<Registro> findAllByUsuarioOrderByFechaAscHoraEntradaAsc(Usuario usuario);
+
+        List<Registro> findAllByHoraSalidaIsNullAndFechaLessThanEqual(LocalDate fecha);
 
         // 🔍 FILTROS PERSONALIZADOS PARA ADMIN
         @Query("SELECT r FROM Registro r JOIN r.usuario u WHERE " +

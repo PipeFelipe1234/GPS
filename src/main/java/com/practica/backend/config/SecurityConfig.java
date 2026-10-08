@@ -23,6 +23,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
 
                         // PUBLICOS
+                        .requestMatchers("/error").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/usuarios").permitAll()
 
